@@ -1,0 +1,384 @@
+# Recursion Schemes
+
+## Section
+
+Recursion schemes are higher order functions (HOF) that can be used as building blocks for composing recursive algorithms. Recursion schemes separates the recursive part of a recursive algorithm from the actual calculation the same way the functions like Array.map separate the the iteration part from the calculation that should be done on each element.
+
+This article will be guiding you through a thought process to understanding recursion schemes by inventing them yourself.
+
+## Recap: Higher Order Functions — recursion vs map
+
+Before we start lets revisit a well known higher order function: map. Originally rooted in functional programming, nowadays it is commonly used in imperative and object oriented programming languages as well. It allows to express an element-wise operation over some container object, like over a list or array of elements.
+
+Take a look at the following two example functions. The first one iterates over an array to multiply each element by two, collecting the results in a new array.
+
+```elixir
+defmodule Recursion do
+  def doubleEachElement([]), do: []
+
+  def doubleEachElement([head | tail]) do
+    [2 * head | doubleEachElement(tail)]
+  end
+end
+
+[1, 2, 3]
+|> Recursion.doubleEachElement()
+```
+
+```elixir
+defmodule TailRecursion do
+  def doubleEachElement(list, accumulator \\ [])
+
+  def doubleEachElement([], accum), do: accum
+
+  def doubleEachElement([head | tail], accum) do
+    doubleEachElement(tail, [2 * head | accum])
+  end
+end
+
+[1, 2, 3]
+|> TailRecursion.doubleEachElement()
+```
+
+The next one achieves the same result but splits the task of iteration and the task of element-wise calculation into two separate functions. The function doing the interation and collecting the resulting values is called arrayMap, or typically just map.
+
+```elixir
+defmodule GenericMap do
+  def processEachElement(list, op, accumulator \\ [])
+
+  def processEachElement([], _op, accum), do: accum
+
+  def processEachElement([head | tail], op, accum) do
+    processEachElement(tail, op, [op.(head) | accum])
+  end
+end
+
+[1, 2, 3]
+|> GenericMap.processEachElement(fn e -> 2 * e end)
+|> IO.inspect(label: "Doubled")
+```
+
+There are many advantages of separating the iteration from the element-wise calculation. The most obvious advantage is that the iteration has only to be defined once and can be reused for various different operations:
+
+```elixir
+[1, 2, 3]
+|> GenericMap.processEachElement(fn e -> 3 * e end)
+|> IO.inspect(label: "Tripled")
+
+[1, 2, 3]
+|> GenericMap.processEachElement(fn e -> e + 1 end)
+|> IO.inspect(label: "Incremented")
+
+[1, 2, 3]
+|> GenericMap.processEachElement(fn e -> rem(e, 2) == 0 end)
+|> IO.inspect(label: "Even")
+```
+
+Another advantage is that the intentions and invariants of the task are expressed more clearly and explcitly.Applying the map function will not change the number of elements in the array and it will not change the order of the elements.
+
+A third advantage of this conceptual separation is to abstract away the specific iteration stragegy, like the specific usage of a for loop (vs a while loop or some other iteration logic). It allowes for later changes and optimizations. For example the internal iteration order could be reversed or even parallelized without effecting the observable result:
+
+```elixir
+defmodule ParallelMap do
+  def processEachElement(list, op) do
+    parent = self()
+
+    pids =
+      for item <- list do
+        spawn(fn ->
+          send(parent, {self(), op.(item)})
+        end)
+      end
+
+    for pid <- pids do
+      receive do
+        {^pid, result} -> result
+      end
+    end
+  end
+end
+
+[1, 2, 3]
+|> ParallelMap.processEachElement(fn e -> 3 * e end)
+|> IO.inspect(label: "Tripled")
+
+[1, 2, 3]
+|> ParallelMap.processEachElement(fn e -> e + 1 end)
+|> IO.inspect(label: "Incremented")
+
+[1, 2, 3]
+|> ParallelMap.processEachElement(fn e -> rem(e, 2) == 0 end)
+|> IO.inspect(label: "Even")
+```
+
+The fourth advantage is that the same concept of applying an element-wise transformation can be implemented for other containers of elements. For example for a binary tree as the one below:
+
+```elixir
+simpleBinaryTree = {
+  :inner,
+  {:inner, {:leaf, 2}, {:leaf, 3}},
+  {:inner, {:leaf, 5}, {:inner, {:leaf, 2}, {:leaf, 3}}}
+}
+```
+
+A corresponding map function could be implemented as follows:
+
+```elixir
+defmodule TreeMap do
+  def processEachElement(tree, op)
+
+  def processEachElement({:leaf, value}, op) do
+    {:leaf, op.(value)}
+  end
+
+  def processEachElement({:inner, left, right}, op) do
+    {:inner, processEachElement(left, op), processEachElement(right, op)}
+  end
+end
+```
+
+Then we coule use the mapTree function in the same way (except for the name) as we did with the mapArray function before to transform each element in the tree:
+
+```elixir
+simpleBinaryTree |> IO.inspect(label: "Original Tree")
+IO.puts("")
+
+simpleBinaryTree
+|> TreeMap.processEachElement(fn e -> 3 * e end)
+|> IO.inspect(label: "Tripled", pretty: true)
+
+IO.puts("")
+
+simpleBinaryTree
+|> TreeMap.processEachElement(fn e -> e + 1 end)
+|> IO.inspect(label: "Incremented", pretty: true)
+
+IO.puts("")
+
+simpleBinaryTree
+|> TreeMap.processEachElement(fn e -> rem(e, 2) == 0 end)
+|> IO.inspect(label: "Even", pretty: true)
+```
+
+Now we have seen that separating the stepping from the work to do at each step is a powerful tool when doing work with each element in a data structure.
+
+## Recursive data structures
+
+With the binary tree in the example above we have seen that the corresponding map function allowes us to work with a recursive data structure without re-implementing the recursive walking part our self each time.
+
+But by the nature of the map function we were constraint to modify each value of the tree separately. At each step in the callback function we only have access to one element of the tree, not to its parents or children or other parts of the tree. What if we want to do actual tree-related calculations but still package the walking the tree part into a neatly reusable function?
+
+Lets take a look at a few typical cases to see if we can recognize some pattern. Say we want to determine the height of the tree, count the leafs of the tree, count the total number of nodes, find the minimum value inside the tree and find the maximum value inside the tree. We also want to serialize our tree into a string, for better readability
+
+Lets first implement one function for each of our goals by hand. Afterwards we will try to find similaries in the recursion structure and come up with a general reusable solution.
+
+For the maximum tree height, at each node we calculate the height of both children and take their maximum:
+
+```elixir
+defmodule TreeHeight do
+  def treeHeight(tree)
+
+  def treeHeight({:leaf, _value}) do
+    1
+  end
+
+  def treeHeight({:inner, left, right}) do
+    1 +
+      max(
+        treeHeight(left),
+        treeHeight(right)
+      )
+  end
+end
+```
+
+```elixir
+simpleBinaryTree
+|> TreeHeight.treeHeight()
+|> IO.inspect(label: "Tree Height")
+```
+
+For the total number of leafs the result is 1 if the node itself is a leaf. For inner nodes we sum the number of leafs of the left child with the number of leafs of the right child:
+
+```elixir
+defmodule TreeLeafCount do
+  def count(tree)
+
+  def count({:leaf, _value}) do
+    1
+  end
+
+  def count({:inner, left, right}) do
+    count(left) +
+      count(right)
+  end
+end
+```
+
+```elixir
+simpleBinaryTree
+|> TreeLeafCount.count()
+|> IO.inspect(label: "Leaf Count")
+```
+
+For the total node count the do the same as for counting the leafs but also add +1 in case of the inner node, to count this node as well.
+
+```elixir
+defmodule TreeNodeCount do
+  def count(tree)
+
+  def count({:leaf, _value}) do
+    1
+  end
+
+  def count({:inner, left, right}) do
+    1 +  
+    count(left) + 
+    count(right)
+    
+  end
+end
+```
+
+```elixir
+simpleBinaryTree
+|> TreeNodeCount.count()
+|> IO.inspect(label: "Node Count")
+```
+
+For the minimum value stored in a tree (our tree stores values only in its leafs), we take the minimum of either the left or the right child tree. For leaf nodes we just take their value.
+
+```elixir
+defmodule TreeMinValue do
+  def minValue(tree)
+
+  def minValue({:leaf, value}) do
+    value
+  end
+
+  def minValue({:inner, left, right}) do
+    min(
+      minValue(left),
+      minValue(right)
+    )
+  end
+end
+```
+
+```elixir
+simpleBinaryTree
+|> TreeMinValue.minValue()
+|> IO.inspect(label: "Min Value")
+```
+
+For the maximum value stored in a tree (our tree stores values only in its leafs), we do the same as for the minimum value, but taking the maximum of two children:
+
+```elixir
+defmodule TreeMaxValue do
+  def maxValue(tree)
+
+  def maxValue({:leaf, value}) do
+    value
+  end
+
+  def maxValue({:inner, left, right}) do
+    max(
+      maxValue(left),
+      maxValue(right)
+    )
+  end
+end
+```
+
+```elixir
+simpleBinaryTree
+|> TreeMaxValue.maxValue()
+|> IO.inspect(label: "Max Value")
+```
+
+For turning the Tree into a string the concat the stringified left child to the stringified right child. For leaf nodes we turn the value stored in the node into a string. We also append some parenthisis to reflect the tree structure in the string.
+
+```elixir
+defmodule TreeToString do
+  def toString(tree)
+
+  def toString({:leaf, value}) do
+    "[#{value}]"
+  end
+
+  def toString({:inner, left, right}) do
+    "(#{toString(left)}:#{toString(right)})"
+  end
+end
+```
+
+```elixir
+simpleBinaryTree
+|> TreeToString.toString()
+|> IO.inspect(label: "Tree as String")
+```
+
+All the implementations above look very similar. All of them check if the current node we are looking at is a leaf (i.e. has a value property). If so, a base case result is returned, either a constant or a some other value based only on the value stored in the leaf. If on the other hand the current node is an inner node, two recursive function calls are invoked (one for the left and one for the right branch of the tree) and then their result is combined in a speicific way.
+
+This pattern of similarity between these function is what we are after. Such a recognizable pattern in recursive algorithms is what is called a recursion scheme. This speicific pattern that we just recognized and described is one specific recursion scheme that later get a specific name.
+
+Lets try to extract this pattern of recursive function calls into a common function, similar to our map function. We take one of the function definitions above and try to move all the specific calculations into functions parameters to be passed in later:
+
+```elixir
+defmodule TreeReducer do
+  def reduce(tree, leafOp, innerOp)
+
+  def reduce({:leaf, value}, leafOp, _innerOp) do
+    leafOp.(value)
+  end
+
+  def reduce({:inner, left, right}, leafOp, innerOp) do
+    innerOp.(reduce(left, leafOp, innerOp), reduce(right, leafOp, innerOp))
+  end
+end
+```
+
+Instead of hardcoding what to do with the leaf nodes and how exactly the recursive results for the two branches are to be combined , we accept two callback functions: handleLeaf is called with the value stored in each leaf (similar to fn in our treeMap function before) and handleBranch is called with the two results from both of the recursive calls.
+
+Now be can express all of our different tree-based calculations from above in terms of our new binaryTreeReduce function:
+
+```elixir
+simpleBinaryTree
+|> TreeReducer.reduce(fn _ -> 1 end, &(1 + max(&1, &2)))
+|> IO.inspect(label: "Tree Height")
+
+simpleBinaryTree
+|> TreeReducer.reduce(fn _ -> 1 end, &(&1 + &2))
+|> IO.inspect(label: "Leaf Count")
+
+
+simpleBinaryTree
+|> TreeReducer.reduce(fn _ -> 1 end, &(1 + &1 + &2))
+|> IO.inspect(label: "Node Count")
+
+simpleBinaryTree
+|> TreeReducer.reduce(fn v -> v end, &min(&1, &2))
+|> IO.inspect(label: "Min Value")
+
+
+simpleBinaryTree
+|> TreeReducer.reduce(fn v -> v end, &max(&1, &2))
+|> IO.inspect(label: "Max Value")
+
+
+simpleBinaryTree
+|> TreeReducer.reduce(fn v -> "[#{v}]" end, &"(#{&1}, #{&2})")
+|> IO.inspect(label: "Tree as String")
+```
+
+That worked great! We have successfully abstracted the recursion into a single binaryTreeReduce function. Are we done yet? Have we mastered the recursion scheme? Almost, but we are not quite there yet.
+
+## Other recursive data structures
+
+The binaryTreeReduce function does work for our binary tree but what if we have other recursive data structures we want to work with? For example linked lists, trees with more or less than exactly two branches or trees with values stored on the inner nodes as well?
+
+It would be nice if we could come up with a single recursiveReduce function that works the same for all of these structures, the same way that the interface of a map(fn, collection) functions works for both lists, arrays, trees and other collections (more preciseley functors)
+
+Lets write down some of the recursive data structures we want to work with and start from there:
+
+Trees with values store in both leafs and inner nodes:
