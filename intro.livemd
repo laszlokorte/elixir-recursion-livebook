@@ -1,16 +1,22 @@
 # Recursion Schemes
 
-## Section
+```elixir
+Mix.install([
+  {:kino, "~> 0.19.0"}
+])
+```
 
-Recursion schemes are higher order functions (HOF) that can be used as building blocks for composing recursive algorithms. Recursion schemes separates the recursive part of a recursive algorithm from the actual calculation the same way the functions like Array.map separate the the iteration part from the calculation that should be done on each element.
+## Introduction
 
-This article will be guiding you through a thought process to understanding recursion schemes by inventing them yourself.
+**Recursion schemes** are higher order functions that can be used as building blocks for composing recursive algorithms. Recursion schemes separate the *recursive part* of a recursive algorithm from the *actual calculation* the same way the functions like `Enum.map` separate the the *iteration* logic from the *calculation* that should be done on each element.
+
+This livebook will be guiding you through a thought process to understanding recursion schemes by inventing/discovering them by yourself.
 
 ## Recap: Higher Order Functions — recursion vs map
 
-Before we start lets revisit a well known higher order function: map. Originally rooted in functional programming, nowadays it is commonly used in imperative and object oriented programming languages as well. It allows to express an element-wise operation over some container object, like over a list or array of elements.
+Before we start lets revisit a well known higher order function: `Enum.map`. Originally rooted in functional programming, nowadays it is commonly used in imperative and object oriented programming languages as well. It allows to express an element-wise operation over some container object, like over a list or an array of elements.
 
-Take a look at the following two example functions. The first one iterates over an array to multiply each element by two, collecting the results in a new array.
+Take a look at the following three example functions. The first one walks through a list recursively to multiply each element by two, collecting the results in a new list.
 
 ```elixir
 defmodule Recursion do
@@ -23,7 +29,12 @@ end
 
 [1, 2, 3]
 |> Recursion.doubleEachElement()
+|> IO.inspect(label: "Doubled")
+
+Kino.nothing()
 ```
+
+The next one does the same but but uses an accumultor to eagerly build the resulting list.
 
 ```elixir
 defmodule TailRecursion do
@@ -38,12 +49,15 @@ end
 
 [1, 2, 3]
 |> TailRecursion.doubleEachElement()
+|> IO.inspect(label: "Doubled")
+
+Kino.nothing()
 ```
 
-The next one achieves the same result but splits the task of iteration and the task of element-wise calculation into two separate functions. The function doing the interation and collecting the resulting values is called arrayMap, or typically just map.
+The next one achieves the same result but splits the task of iteration and the task of element-wise calculation into two separate functions. The function doing the interation and collecting the resulting values is called `List.map`, or typically just `map`.
 
 ```elixir
-defmodule GenericMap do
+defmodule GenericListMap do
   def processEachElement(list, op, accumulator \\ [])
 
   def processEachElement([], _op, accum), do: accum
@@ -54,27 +68,40 @@ defmodule GenericMap do
 end
 
 [1, 2, 3]
-|> GenericMap.processEachElement(fn e -> 2 * e end)
+|> GenericListMap.processEachElement(fn e -> 2 * e end)
 |> IO.inspect(label: "Doubled")
+
+Kino.nothing()
+```
+
+```elixir
+[1, 2, 3]
+# using the builtin Enum.map
+|> Enum.map(fn e -> 2 * e end)
+|> IO.inspect(label: "Doubled")
+
+Kino.nothing()
 ```
 
 There are many advantages of separating the iteration from the element-wise calculation. The most obvious advantage is that the iteration has only to be defined once and can be reused for various different operations:
 
 ```elixir
 [1, 2, 3]
-|> GenericMap.processEachElement(fn e -> 3 * e end)
+|> GenericListMap.processEachElement(fn e -> 3 * e end)
 |> IO.inspect(label: "Tripled")
 
 [1, 2, 3]
-|> GenericMap.processEachElement(fn e -> e + 1 end)
+|> GenericListMap.processEachElement(fn e -> e + 1 end)
 |> IO.inspect(label: "Incremented")
 
 [1, 2, 3]
-|> GenericMap.processEachElement(fn e -> rem(e, 2) == 0 end)
+|> GenericListMap.processEachElement(fn e -> rem(e, 2) == 0 end)
 |> IO.inspect(label: "Even")
+
+Kino.nothing()
 ```
 
-Another advantage is that the intentions and invariants of the task are expressed more clearly and explcitly.Applying the map function will not change the number of elements in the array and it will not change the order of the elements.
+Another advantage is that the intentions and invariants of the task are expressed more clearly and explcitly. Applying the map function will not change the number of elements in the array and it will not change the order of the elements.
 
 A third advantage of this conceptual separation is to abstract away the specific iteration stragegy, like the specific usage of a for loop (vs a while loop or some other iteration logic). It allowes for later changes and optimizations. For example the internal iteration order could be reversed or even parallelized without effecting the observable result:
 
@@ -85,6 +112,7 @@ defmodule ParallelMap do
 
     pids =
       for item <- list do
+        # for each element spawn a new process to do the calculation
         spawn(fn ->
           send(parent, {self(), op.(item)})
         end)
@@ -92,6 +120,7 @@ defmodule ParallelMap do
 
     for pid <- pids do
       receive do
+        # collect all the results back into the final list
         {^pid, result} -> result
       end
     end
@@ -99,16 +128,21 @@ defmodule ParallelMap do
 end
 
 [1, 2, 3]
+# from the calling perspective it looks exactly the same
 |> ParallelMap.processEachElement(fn e -> 3 * e end)
 |> IO.inspect(label: "Tripled")
 
 [1, 2, 3]
+# from the calling perspective it looks exactly the same
 |> ParallelMap.processEachElement(fn e -> e + 1 end)
 |> IO.inspect(label: "Incremented")
 
 [1, 2, 3]
+# from the calling perspective it looks exactly the same
 |> ParallelMap.processEachElement(fn e -> rem(e, 2) == 0 end)
 |> IO.inspect(label: "Even")
+
+Kino.nothing()
 ```
 
 The fourth advantage is that the same concept of applying an element-wise transformation can be implemented for other containers of elements. For example for a binary tree as the one below:
@@ -119,25 +153,39 @@ simpleBinaryTree = {
   {:inner, {:leaf, 2}, {:leaf, 3}},
   {:inner, {:leaf, 5}, {:inner, {:leaf, 2}, {:leaf, 3}}}
 }
+
+simpleBinaryTree |> IO.inspect(label: "Tree of Tuples", width: 35, pretty: true)
+Kino.nothing()
 ```
 
 A corresponding map function could be implemented as follows:
 
 ```elixir
 defmodule TreeMap do
+  # takes a tree and a operation to apply to each element
   def processEachElement(tree, op)
 
   def processEachElement({:leaf, value}, op) do
+    # if the tree is just a leaf, apply op the the containg value
+    # and build a new leaf
     {:leaf, op.(value)}
   end
 
   def processEachElement({:inner, left, right}, op) do
-    {:inner, processEachElement(left, op), processEachElement(right, op)}
+    # if the tree is an inner node, call the function recursively on each child
+    # and build a new inner node from both results
+    {
+      :inner,
+      processEachElement(left, op),
+      processEachElement(right, op)
+    }
   end
 end
+
+Kino.nothing()
 ```
 
-Then we coule use the mapTree function in the same way (except for the name) as we did with the mapArray function before to transform each element in the tree:
+Then we coule use the `TreeMap.processEachElement` function in the same way (except for the name) as we did with the `GenericListMap.processEachElement` function before to transform each element in the tree:
 
 ```elixir
 simpleBinaryTree |> IO.inspect(label: "Original Tree")
@@ -158,15 +206,17 @@ IO.puts("")
 simpleBinaryTree
 |> TreeMap.processEachElement(fn e -> rem(e, 2) == 0 end)
 |> IO.inspect(label: "Even", pretty: true)
+
+Kino.nothing()
 ```
 
-Now we have seen that separating the stepping from the work to do at each step is a powerful tool when doing work with each element in a data structure.
+Now we have seen that separating the stepping from the work to do at each step is a powerful abstraction when doing computations on each element in a data structure.
 
 ## Recursive data structures
 
-With the binary tree in the example above we have seen that the corresponding map function allowes us to work with a recursive data structure without re-implementing the recursive walking part our self each time.
+With the *binary tree* in the example above we have seen that the corresponding `TreeMap.processEachElement` function allowes us to work with a recursive data structure without re-implementing the recursive walking part our self each time.
 
-But by the nature of the map function we were constraint to modify each value of the tree separately. At each step in the callback function we only have access to one element of the tree, not to its parents or children or other parts of the tree. What if we want to do actual tree-related calculations but still package the walking the tree part into a neatly reusable function?
+But by the nature of the `TreeMap.processEachElement` function we were constraint to modify each value of the tree separately. At each step in the callback function we only have access to one element of the tree, not to its parents, children or other parts of the tree. What if we want to do actual tree-related calculations but still package the walking the tree part into a neatly reusable function?
 
 Lets take a look at a few typical cases to see if we can recognize some pattern. Say we want to determine the height of the tree, count the leafs of the tree, count the total number of nodes, find the minimum value inside the tree and find the maximum value inside the tree. We also want to serialize our tree into a string, for better readability
 
@@ -190,12 +240,16 @@ defmodule TreeHeight do
       )
   end
 end
+
+Kino.nothing()
 ```
 
 ```elixir
 simpleBinaryTree
 |> TreeHeight.treeHeight()
 |> IO.inspect(label: "Tree Height")
+
+Kino.nothing()
 ```
 
 For the total number of leafs the result is 1 if the node itself is a leaf. For inner nodes we sum the number of leafs of the left child with the number of leafs of the right child:
@@ -213,12 +267,12 @@ defmodule TreeLeafCount do
       count(right)
   end
 end
-```
 
-```elixir
 simpleBinaryTree
 |> TreeLeafCount.count()
 |> IO.inspect(label: "Leaf Count")
+
+Kino.nothing()
 ```
 
 For the total node count the do the same as for counting the leafs but also add +1 in case of the inner node, to count this node as well.
@@ -232,18 +286,17 @@ defmodule TreeNodeCount do
   end
 
   def count({:inner, left, right}) do
-    1 +  
-    count(left) + 
-    count(right)
-    
+    1 +
+      count(left) +
+      count(right)
   end
 end
-```
 
-```elixir
 simpleBinaryTree
 |> TreeNodeCount.count()
 |> IO.inspect(label: "Node Count")
+
+Kino.nothing()
 ```
 
 For the minimum value stored in a tree (our tree stores values only in its leafs), we take the minimum of either the left or the right child tree. For leaf nodes we just take their value.
@@ -263,12 +316,12 @@ defmodule TreeMinValue do
     )
   end
 end
-```
 
-```elixir
 simpleBinaryTree
 |> TreeMinValue.minValue()
 |> IO.inspect(label: "Min Value")
+
+Kino.nothing()
 ```
 
 For the maximum value stored in a tree (our tree stores values only in its leafs), we do the same as for the minimum value, but taking the maximum of two children:
@@ -288,12 +341,12 @@ defmodule TreeMaxValue do
     )
   end
 end
-```
 
-```elixir
 simpleBinaryTree
 |> TreeMaxValue.maxValue()
 |> IO.inspect(label: "Max Value")
+
+Kino.nothing()
 ```
 
 For turning the Tree into a string the concat the stringified left child to the stringified right child. For leaf nodes we turn the value stored in the node into a string. We also append some parenthisis to reflect the tree structure in the string.
@@ -304,18 +357,18 @@ defmodule TreeToString do
 
   def toString({:leaf, value}) do
     "[#{value}]"
-  end
+    endc
 
   def toString({:inner, left, right}) do
     "(#{toString(left)}:#{toString(right)})"
   end
 end
-```
 
-```elixir
 simpleBinaryTree
 |> TreeToString.toString()
 |> IO.inspect(label: "Tree as String")
+
+Kino.nothing()
 ```
 
 All the implementations above look very similar. All of them check if the current node we are looking at is a leaf (i.e. has a value property). If so, a base case result is returned, either a constant or a some other value based only on the value stored in the leaf. If on the other hand the current node is an inner node, two recursive function calls are invoked (one for the left and one for the right branch of the tree) and then their result is combined in a speicific way.
@@ -336,6 +389,8 @@ defmodule TreeReducer do
     innerOp.(reduce(left, leafOp, innerOp), reduce(right, leafOp, innerOp))
   end
 end
+
+Kino.nothing()
 ```
 
 Instead of hardcoding what to do with the leaf nodes and how exactly the recursive results for the two branches are to be combined , we accept two callback functions: handleLeaf is called with the value stored in each leaf (similar to fn in our treeMap function before) and handleBranch is called with the two results from both of the recursive calls.
@@ -351,7 +406,6 @@ simpleBinaryTree
 |> TreeReducer.reduce(fn _ -> 1 end, &(&1 + &2))
 |> IO.inspect(label: "Leaf Count")
 
-
 simpleBinaryTree
 |> TreeReducer.reduce(fn _ -> 1 end, &(1 + &1 + &2))
 |> IO.inspect(label: "Node Count")
@@ -360,15 +414,15 @@ simpleBinaryTree
 |> TreeReducer.reduce(fn v -> v end, &min(&1, &2))
 |> IO.inspect(label: "Min Value")
 
-
 simpleBinaryTree
 |> TreeReducer.reduce(fn v -> v end, &max(&1, &2))
 |> IO.inspect(label: "Max Value")
 
-
 simpleBinaryTree
 |> TreeReducer.reduce(fn v -> "[#{v}]" end, &"(#{&1}, #{&2})")
 |> IO.inspect(label: "Tree as String")
+
+Kino.nothing()
 ```
 
 That worked great! We have successfully abstracted the recursion into a single binaryTreeReduce function. Are we done yet? Have we mastered the recursion scheme? Almost, but we are not quite there yet.
@@ -382,3 +436,1951 @@ It would be nice if we could come up with a single recursiveReduce function that
 Lets write down some of the recursive data structures we want to work with and start from there:
 
 Trees with values store in both leafs and inner nodes:
+
+```elixir
+simpleBinaryTreeWithInnerValues = {
+  :inner,
+  4,
+  {:inner, 8, {:leaf, 23}, {:leaf, 42}},
+  {:inner, 16, {:leaf, 32}, {:inner, 64, {:leaf, 108}, {:leaf, 99}}}
+}
+
+simpleBinaryTreeWithInnerValues |> IO.inspect(label: "Tree of Tuples with inner values")
+
+Kino.nothing()
+```
+
+```elixir
+simpleLinkedList = {42, {23, {16, {8, {4, {}}}}}}
+
+simpleLinkedList |> IO.inspect(label: "simpleLinkedList")
+
+Kino.nothing()
+```
+
+```elixir
+simpleBinaryTreeWithEmptyNode = {
+  :inner,
+  4,
+  {:inner, 8, {:leaf, 23}, :empty},
+  {:inner, 16, :empty, {:inner, 42, :empty, {:leaf, 108}}}
+}
+
+simpleBinaryTreeWithEmptyNode |> IO.inspect(label: "Tree of Tuples with inner values")
+
+Kino.nothing()
+```
+
+Our next goal is again to recognize a pattern between all these structures that can then be generalized. Lets try to implement the function to find the minimum element of each of these three structures. Afterwards we try to see a common pattern in each of the three implementations:
+
+```elixir
+defmodule BinaryTreeMinValue do
+  def minValue(tree)
+
+  def minValue({:leaf, value}) do
+    value
+  end
+
+  def minValue({:inner, inner_value, left, right}) do
+    min(
+      minValue(left),
+      minValue(right)
+    )
+    |> min(inner_value)
+  end
+end
+
+simpleBinaryTreeWithInnerValues
+|> BinaryTreeMinValue.minValue()
+|> IO.inspect(label: "Min Value")
+
+Kino.nothing()
+```
+
+```elixir
+defmodule LinkedListMinValue do
+  def minValue(list, fallback \\ :infinity)
+
+  def minValue({}, fallback) do
+    fallback
+  end
+
+  def minValue({head, tail}, fallback) do
+    min(
+      head,
+      minValue(tail, fallback)
+    )
+  end
+end
+
+simpleLinkedList
+|> LinkedListMinValue.minValue()
+|> IO.inspect(label: "Min Value")
+
+Kino.nothing()
+```
+
+```elixir
+defmodule SparseBinaryTreeMinValue do
+  def minValue(tree, fallback \\ :infinity)
+
+  def minValue(:empty, fallback) do
+    fallback
+  end
+
+  def minValue({:leaf, value}, _fallback) do
+    value
+  end
+
+  def minValue({:inner, inner_value, left, right}, fallback) do
+    min(
+      minValue(left, fallback),
+      minValue(right, fallback)
+    )
+    |> min(inner_value)
+  end
+end
+
+simpleBinaryTreeWithEmptyNode
+|> SparseBinaryTreeMinValue.minValue(:infinity)
+|> IO.inspect(label: "Min Value")
+
+Kino.nothing()
+```
+
+We can observe that each of theses functions differ in the number of branches, depending on the structure of the recursive data structure. For the linked list we need only two branches, one for the nil case at the end of the list and one for the case of list having a head. For the binary tree with either an inner node with left/right children or an empty node or a leaf node with a single value, the recursive function needs to handle each of the three conditions.
+
+Also the number of arguments of the functions vary. For the tree that contains at least one leaf node with a value we do not need a fallback value. But for the other two structures we need a fallback value to return in case the structure itself does not contain any value that could be used as result.
+
+How could we possibly unify all three of these functions into a common interface? Lets take it slowly and first implement a generic function for each of the structures individually again, as we did with binaryTreeReduce for the simple binary tree above:
+
+For processing the binary tree we accept two callbacks: one for handling the leaf and one for handling the inner node:
+
+```elixir
+defmodule BinaryTreeReduce do
+  def reduceValue(tree, handleLeaf, handleInner)
+
+  def reduceValue({:leaf, value}, handleLeaf, _handleInner) do
+    handleLeaf.(value)
+  end
+
+  def reduceValue({:inner, inner_value, left, right}, handleLeaf, handleInner) do
+    handleInner.(
+      inner_value,
+      reduceValue(left, handleLeaf, handleInner),
+      reduceValue(right, handleLeaf, handleInner)
+    )
+  end
+end
+
+simpleBinaryTreeWithInnerValues
+|> BinaryTreeReduce.reduceValue(fn l -> l end, fn v, l, r -> min(v, min(l, r)) end)
+|> IO.inspect(label: "Min Value")
+
+Kino.nothing()
+```
+
+For processing the linked list we also accept two callbacks: one for handling the empty case and one for handling a head. Notice that for handling the fallback case of an empty list we will provide it as function returning a constant instead of a constant itself. This is for consistency reasons.
+
+```elixir
+defmodule LinkedListReduce do
+  def reduceValue(tree, handleEmpty, handleInner)
+
+  def reduceValue({}, handleEmpty, _handleInner) do
+    handleEmpty.()
+  end
+
+  def reduceValue({head, tail}, handleEmpty, handleInner) do
+    handleInner.(
+      head,
+      reduceValue(tail, handleEmpty, handleInner)
+    )
+  end
+end
+
+simpleLinkedList
+|> LinkedListReduce.reduceValue(fn -> :infinity end, &min/2)
+|> IO.inspect(label: "Min Value")
+
+Kino.nothing()
+```
+
+For the tree with maybe empty nodes we had to consider three cases and accordingly accept three different callback functions to handle them. Same as with the linked list we model the fallback value for the empty case as callback function as well.
+
+```elixir
+defmodule SparseTreeReduce do
+  def reduceValue(tree, handleEmpty, handleLeaf, handleInner)
+
+  def reduceValue(:empty, handleEmpty, _handleLeaf, _handleInner) do
+    handleEmpty.()
+  end
+
+  def reduceValue({:leaf, value}, _handleEmpty, handleLeaf, _handleInner) do
+    handleLeaf.(value)
+  end
+
+  def reduceValue({:inner, value, left, right}, handleEmpty, handleLeaf, handleInner) do
+    handleInner.(
+      value,
+      reduceValue(left, handleEmpty, handleLeaf, handleInner),
+      reduceValue(right, handleEmpty, handleLeaf, handleInner)
+    )
+  end
+end
+
+simpleBinaryTreeWithEmptyNode
+|> SparseTreeReduce.reduceValue(
+  fn -> :infinity end,
+  & &1,
+  fn v, l, r -> min(v, min(l, r)) end
+)
+|> IO.inspect(label: "Min Value")
+
+Kino.nothing()
+```
+
+Now we can see even more cleary that the number of needed handle-callbacks for each reduction vary and that even the number of argument each of these handle-callback takes, varies. For example handleEmpty takes now arguments but handleInner for one of the trees may take 3.
+
+At a first glance it does not seem possible to unify the arguments of these different reudction function into a single generic function that works for both lists, trees and other recursive data strutures. Now comes the brilliant idea:
+
+But what if we could merge all the callbacks into a single callback function and leave it for this function to handle each possible case correctly? Lets try:
+
+```elixir
+defmodule BinaryTreeReduceUnified do
+  def reduceValue(tree, handleCases)
+
+  def reduceValue({:leaf, value}, handleCases) do
+    handleCases.({:leaf, value})
+  end
+
+  def reduceValue({:inner, inner_value, left, right}, handleCases) do
+    handleCases.({
+      :inner,
+      inner_value,
+      reduceValue(left, handleCases),
+      reduceValue(right, handleCases)
+    })
+  end
+end
+
+simpleBinaryTreeWithInnerValues
+|> BinaryTreeReduceUnified.reduceValue(fn
+  {:leaf, v} -> v
+  {:inner, v, l, r} -> min(v, min(l, r))
+end)
+|> IO.inspect(label: "Min Value")
+
+Kino.nothing()
+```
+
+```elixir
+defmodule LinkedListReduceUnified do
+  def reduceValue(tree, handleCases)
+
+  def reduceValue({}, handleCases) do
+    handleCases.({})
+  end
+
+  def reduceValue({head, tail}, handleCases) do
+    handleCases.({
+      head,
+      reduceValue(tail, handleCases)
+    })
+  end
+end
+
+simpleLinkedList
+|> LinkedListReduceUnified.reduceValue(fn
+  {} -> :infinity
+  {a, b} -> min(a, b)
+end)
+|> IO.inspect(label: "Min Value")
+
+Kino.nothing()
+```
+
+```elixir
+defmodule SparseTreeReduceUnified do
+  def reduceValue(tree, handleCases)
+
+  def reduceValue(:empty, handleCases) do
+    handleCases.(:empty)
+  end
+
+  def reduceValue({:leaf, value}, handleCases) do
+    handleCases.({:leaf, value})
+  end
+
+  def reduceValue({:inner, value, left, right}, handleCases) do
+    handleCases.({
+      :inner,
+      value,
+      reduceValue(left, handleCases),
+      reduceValue(right, handleCases)
+    })
+  end
+end
+
+simpleBinaryTreeWithEmptyNode
+|> SparseTreeReduceUnified.reduceValue(fn
+  :empty -> :infinity
+  {:leaf, v} -> v
+  {:inner, v, l, r} -> min(v, min(l, r))
+end)
+|> IO.inspect(label: "Min Value")
+
+Kino.nothing()
+```
+
+Did you notice what we did here? We merged all the callback functions into a single handleCases callback that takes only a single value as argument. What what exactly is this argument that we pass to handleCases? It is either an object containing the results of the recusive function calls, or the value store in the leafs of the data structure, in case we hit a base case, or a special marker object in case we are in an empty case.
+
+But look again: the value we pass to handleCases exactly reflects the structure of the node we are currently processing.
+
+For example when processing an inner node of a binary tree with inner values ({value, left, right}), we call handleCases({ value, left, right, }) with value containing the value in the current node, but left and right not containing the sub trees of the original tree, but instead the already calculated results of the two recursive calls.
+
+What we pass to the handleCases looks structurally exactly like a node of the the tree but, instead of actually containing the recursive structure of the tree, it is just a flat container for the the results of the recursive function calls.
+
+For each of our data structures we can think of having actually two different but matching storage structures: One that stores the actual tree and one that stores the result of doing a single recursive calculation step at one tree node. Both look like {value, left, right} | {value} on the surface but differ in their content: The one storing the tree is actually {value: Number, left: Tree, right: Tree} | {value: number} and the other, for storing a caculation result, is: {value: Number, left: Number, right: Number} | {value: number}.
+
+```elixir
+defmodule Ellipsis do 
+  def ..., do: nil
+end
+alias Ellipsis
+```
+
+```elixir
+import Ellipsis
+
+actualInnerTreeNode = {
+  :inner,
+  # value stored in this node
+  5,
+  # left child, being itself a tree node recursively
+  {...},
+  # right child, being itself a tree node recursively 
+  {...}
+}
+
+# a container object storing the results of recursive function calls
+recursionResultTreeNode = {
+  # has the structure as the actual corresponding tree node
+  :inner,
+  # copy of the value stored in the original tree node,
+  5,
+  # not a recursive child node, 
+  23,
+  # but just the result of the recursive function call on the 
+  # left child of the original tree node
+  # not a recursive child node, but just the result of the 
+  42
+  # recursive function call on the right child of the original tree node 
+}
+
+# an actual node from the recursive tree structure
+actualTreeLeafNode = {
+  :leaf,
+  # value stored in this node,
+  5
+}
+
+# a container object storing the results of recursive function calls
+# but this is the base case so it does not store any results
+recursionResultTreeLeftNode = {
+  # has the same property keys as the actual corresponding tree node
+  :leaf,
+  #  copy of the value stored in the original tree node
+  5
+}
+
+Kino.nothing()
+```
+
+We kind of came up with a helper structure for passing results around. So by mirroring the structure of the recursive tree nodes we can capture all the results of our recursive function calls an pass it to to our handler function as a single value. The handler function can then inspect in which case of the structure the recursion is currently working in.
+
+This allows use to define generic recursive functions that work for any recursive data structure as long as for each data structure we carry the corresponding result container around.
+
+But there is more! Take another look at the each of the handleCases(...) function calls and prepare for one more unifying abstraction. For example this one:
+
+```elixir
+defmodule SparseTreeReduceUnifiedReview do
+  def reduceValue(tree, handleCases) do
+    case tree do
+      # inspect type of current node <------
+      :empty ->
+        # with flat copy of the node structure <------
+        :empty
+        # call handleCases
+        |> then(handleCases)
+
+      # inspect type of current node <------
+      {:leaf, value} ->
+        # with flat copy of the node structure <------
+        {:leaf, value}
+        # call handleCases <------
+        |> then(handleCases)
+
+      # inspect type of current node
+      {:inner, inner_value, left, right} ->
+        {
+          # with flat copy of the node structure <------
+          :inner,
+          inner_value,
+          # but with the recursive parts replaced by the recursion result <------
+          reduceValue(left, handleCases),
+          # but with the recursive parts replaced by the recursion result <------
+          reduceValue(right, handleCases)
+        }
+        # call handleCases <------
+        |> then(handleCases)
+    end
+  end
+end
+
+simpleBinaryTreeWithEmptyNode
+|> SparseTreeReduceUnifiedReview.reduceValue(fn
+  :empty -> :infinity
+  {:leaf, v} -> v
+  {:inner, v, l, r} -> min(v, min(l, r))
+end)
+|> IO.inspect(label: "Min Value")
+
+Kino.nothing()
+```
+
+```elixir
+defmodule TreeReduceUnifiedReview do
+  def reduceValue(tree, handleCases) do
+    case tree do
+      # inspect type of current node <------
+      {:leaf, value} ->
+        # with flat copy of the node structure <------
+        {:leaf, value}
+        # call handleCases <------
+        |> then(handleCases)
+
+      # inspect type of current node <------
+      {:inner, inner_value, left, right} ->
+        {
+          # with flat copy of the node structure <------
+          :inner,
+          inner_value,
+          # but with the recursive parts replaced by the recursion result <------
+          reduceValue(left, handleCases),
+          # but with the recursive parts replaced by the recursion result <------
+          reduceValue(right, handleCases)
+        }
+        # call handleCases <------
+        |> then(handleCases)
+    end
+  end
+end
+
+simpleBinaryTreeWithInnerValues
+|> TreeReduceUnifiedReview.reduceValue(fn
+  {:leaf, v} -> v
+  {:inner, v, l, r} -> min(v, min(l, r))
+end)
+|> IO.inspect(label: "Min Value")
+
+Kino.nothing()
+```
+
+```elixir
+defmodule LinkedListReduceUnifiedReview do
+  def reduceValue(tree, handleCases) do
+    case tree do
+      # inspect type of current node <------
+      {} ->
+        # with flat copy of the node structure <------
+        {}
+        # call handleCases  <------
+        |> then(handleCases)
+
+      # inspect type of current node  <------
+      {head, tail} ->
+        {
+          # with flat copy of the node structure  <------
+          head,
+          # but with the recursive parts replaced by the recursion result  <------
+          reduceValue(tail, handleCases)
+        }
+        # call handleCases  <------
+        |> then(handleCases)
+    end
+  end
+end
+
+simpleLinkedList
+|> LinkedListReduceUnifiedReview.reduceValue(fn
+  {} -> :infinity
+  {h, t} -> min(h, t)
+end)
+|> IO.inspect(label: "Min Value")
+
+Kino.nothing()
+```
+
+Wow! All the cases in binaryTreeWithEmptyNodesReduce (and the other ...Reduce functions respectively) are following exactly the same structure. The just copy the node, replacing the recursive fields and apply the handleCases function to the now flat copy of the node.
+
+Could we extract the make a flat copy of the node and replace the recursive parts into a separate general function? Yes we can! Take a look:
+
+```elixir
+defmodule SparseTreeReplaceInner do
+  def replaceInner(tree, replacer) do
+    case tree do
+      # inspect type of current node
+      :empty ->
+        # with flat copy of the node structure
+        :empty
+
+      # no |> then(handleCases) here anymore <------- !!!
+
+      # inspect type of current node
+      {:leaf, value} ->
+        # with flat copy of the node structure
+        {:leaf, value}
+
+      # no |> then(handleCases) here anymore <------- !!!
+
+      # inspect type of current node
+      {:inner, inner_value, left, right} ->
+        {
+          # with flat copy of the node structure
+          :inner,
+          inner_value,
+          # but with the recursive parts replaced by the recursion result
+          replacer.(left),
+          # but with the recursive parts replaced by the recursion result
+          replacer.(right)
+        }
+
+        # no |> then(handleCases) here anymore <------- !!!
+    end
+  end
+
+  def reduceValue(tree, handleCases) do
+    tree
+    |> replaceInner(fn
+      # replace each child with its recursion result <------ !!!
+      child -> reduceValue(child, handleCases)
+    end)
+    # call handleCases on the replacement result<------ !!!
+    |> handleCases.()
+  end
+end
+
+simpleBinaryTreeWithEmptyNode
+|> SparseTreeReduceUnifiedReview.reduceValue(fn
+  :empty -> :infinity
+  {:leaf, v} -> v
+  {:inner, v, l, r} -> min(v, min(l, r))
+end)
+|> IO.inspect(label: "Min Value")
+
+Kino.nothing()
+```
+
+Now look at that! The binaryTreeRecursionReplacer looks almost like our map function from the beginning, but instead of applying the provided function (replacer) to the value stored in a node, the function is applied to the recursive fields (left and right). So we can think of it as an alternative completly different way of mapping over the tree node.
+
+Also look at the binaryTreeReduce function now. It is really short now! The handling of all the cases has been moved into the binaryTreeRecursionReplacer function. What is left in binaryTreeReduce is the pure recursion. This is our codified recursion scheme!
+
+Lets put everything back together:
+
+## RecursiveReduction
+
+```elixir
+defmodule SparseTreeRecursionMap do
+  # define a recursive structure in terms of a mapping
+  # over the recursive fields
+  def mapRecur(tree, fun) do
+    case tree do
+      :empty ->
+        :empty
+
+      {:leaf, value} ->
+        {:leaf, value}
+
+      {:inner, inner_value, left, right} ->
+        {
+          :inner,
+          inner_value,
+          fun.(left),
+          fun.(right)
+        }
+    end
+  end
+end
+
+# The catamorphism
+defmodule RecursiveReduction do
+  # the reduction can be applied to any
+  # recursive structure via the recursive mapping function_exported
+  def reduce(data, mapRecur, handleCases) do
+    data
+    |> mapRecur.(fn
+      child -> reduce(child, mapRecur, handleCases)
+    end)
+    |> handleCases.()
+  end
+end
+
+Kino.nothing()
+```
+
+```elixir
+simpleBinaryTreeWithEmptyNode
+|> RecursiveReduction.reduce(
+  &SparseTreeRecursionMap.mapRecur/2,
+  fn
+    :empty -> :infinity
+    {:leaf, v} -> v
+    {:inner, v, l, r} -> min(v, min(l, r))
+  end
+)
+|> IO.inspect(label: "Min Value")
+
+Kino.nothing()
+```
+
+```elixir
+defmodule LinkedListRecursionMap do
+  # the recursive structure of a singly linked list
+  def mapRecur(tree, fun) do
+    case tree do
+      {} ->
+        {}
+
+      {head, tail} ->
+        {
+          head,
+          fun.(tail)
+        }
+    end
+  end
+end
+
+# use the same reducer to find the minimum of the list
+simpleLinkedList
+|> RecursiveReduction.reduce(
+  &LinkedListRecursionMap.mapRecur/2,
+  fn
+    {} -> :infinity
+    {h, t} -> min(h, t)
+  end
+)
+|> IO.inspect(label: "Min Value")
+
+Kino.nothing()
+```
+
+```elixir
+defmodule TreeRecursionMap do
+  # the recursive structure of a binary tree
+  def mapRecur(tree, fun) do
+    case tree do
+      {:leaf, value} ->
+        {:leaf, value}
+
+      {:inner, inner_value, left, right} ->
+        {
+          :inner,
+          inner_value,
+          fun.(left),
+          fun.(right)
+        }
+    end
+  end
+end
+
+# use the same reducer to find the minimum of the tree
+simpleBinaryTreeWithInnerValues
+|> RecursiveReduction.reduce(
+  &TreeRecursionMap.mapRecur/2,
+  fn
+    {:leaf, v} -> v
+    {:inner, v, l, r} -> min(v, min(l, r))
+  end
+)
+|> IO.inspect(label: "Min Value")
+
+Kino.nothing()
+```
+
+## Catamorphism
+
+This specific recursion scheme is called *catamorphism* because *cata* is greek for collapsing and what all our functions had in common is that they collapsed the trees or lists they were given into a single value. Yes, Array.reduce is also a catamorphism.
+
+The function that we called `handleCases` is called an algebras because it captures the rules for turning a tree-like structure into a single value, the same way an algebra in math is about manipulating symbolic expressions and calculating their resulting value.
+
+Lets acutally rename the `RecursiveReduction` module to `Catamorphism` and look at some more examples of how concise some algorithms can be expressed now.
+
+```elixir
+# defmodule RecursiveReduction do
+defmodule Catamorphism do
+  def cata(data, mapRecur, handleCases) do
+    data
+    |> mapRecur.(fn
+      child -> cata(child, mapRecur, handleCases)
+    end)
+    |> handleCases.()
+  end
+end
+
+Kino.nothing()
+```
+
+## SparseTreeStructure
+
+Now we can express a recursive data structure as a combinations of mapping over its structure and so called algebras:
+
+```elixir
+defmodule SparseTreeStructure do
+  # the structure of a tree with possibly empty nodes 
+  def recursion(tree, fun) do
+    case tree do
+      :empty ->
+        :empty
+
+      {:leaf, value} ->
+        {:leaf, value}
+
+      {:inner, inner_value, left, right} ->
+        {
+          :inner,
+          inner_value,
+          fun.(left),
+          fun.(right)
+        }
+    end
+  end
+
+  # all the reductions that we can do with tree
+  defmodule Algebras do
+    def min(tree) do
+      case tree do
+        # The minimum of an empty tree is infinity
+        :empty -> :infinity
+        # The minimum of leaf is its values
+        {:leaf, v} -> v
+        # The minimum of an inner nodes is the minimum of both its children and its own balue
+        {:inner, v, l, r} -> min(v, min(l, r))
+      end
+    end
+
+    # calculate its max value
+    def max(tree) do
+      case tree do
+        :empty -> :neginf
+        {:leaf, v} -> v
+        {:inner, v, l, r} -> maxi(v, maxi(l, r))
+      end
+    end
+
+    # sum all values in both inner and leaf nodes
+    def sum(tree) do
+      case tree do
+        :empty -> 0
+        {:leaf, v} -> v
+        {:inner, v, l, r} -> v + l + r
+      end
+    end
+
+    # multiply all values
+    def product(tree) do
+      case tree do
+        :empty -> 1
+        {:leaf, v} -> v
+        {:inner, v, l, r} -> v * l * r
+      end
+    end
+
+    # turn the tree into a string of nested braces
+    def to_string(tree) do
+      case tree do
+        :empty -> "(X)"
+        {:leaf, v} -> "[#{v}]"
+        {:inner, v, l, r} -> "{#{l}:#{v}:#{r}}"
+      end
+    end
+
+    # check if the tree contains a value
+    def contains(el) do
+      fn
+        :empty -> false
+        {:leaf, ^el} -> true
+        {:leaf, _el} -> false
+        {:inner, ^el, _l, _r} -> true
+        {:inner, _el, l, r} -> l or r
+      end
+    end
+
+    # count only the leafs
+    def count_leafs(tree) do
+      case tree do
+        # empty nodes are not counted
+        :empty -> 0
+        {:leaf, _v} -> 1
+        # for inner nodes be just sum the children results
+        {:inner, _v, l, r} -> l + r
+      end
+    end
+
+    # count all nodes except :empty
+    def count_nodes(tree) do
+      case tree do
+        :empty -> 0
+        {:leaf, _v} -> 1
+        {:inner, l, r} -> 1 + l + r
+      end
+    end
+
+    # count only inner nodes
+    def count_inner(tree) do
+      case tree do
+        :empty -> 0
+        {:leaf, _v} -> 0
+        {:inner, l, r} -> 1 + l + r
+      end
+    end
+
+    # count only empty nodes
+    def count_empty(tree) do
+      case tree do
+        :empty -> 1
+        {:leaf, _v} -> 0
+        {:inner, l, r} -> l + r
+      end
+    end
+
+    # calculate the max tree height
+    def height(tree) do
+      case tree do
+        :empty -> 0
+        {:leaf, _v} -> 1
+        {:inner, _v, l, r} -> 1 + max(l, r)
+      end
+    end
+
+    # minimum height (shortest path from root to leaf)
+    def min_height(tree) do
+      case tree do
+        :empty -> 0
+        {:leaf, _v} -> 1
+        {:inner, _v, l, r} -> 1 + min(l, r)
+      end
+    end
+
+    # check if the tree is balanced by calculating the largest
+    # height difference betwen left and right children across the tree
+    def skew_height(tree) do
+      case tree do
+        :empty ->
+          {0, 0}
+
+        {:leaf, _v} ->
+          {0, 1}
+
+        {:inner, _v, {skew_l, l}, {skew_r, r}} ->
+          {
+            max(abs(r - l), max(skew_l, skew_r)),
+            1 + max(l, r)
+          }
+      end
+    end
+
+    defp maxi(:neginf, a), do: a
+    defp maxi(a, :neginf), do: a
+    defp maxi(a, b), do: Kernel.max(a, b)
+  end
+end
+
+Kino.nothing()
+```
+
+## Reducing SparseTreeStructure
+
+Now that we have defined the structure of our `simpleBinaryTreeWithEmptyNode` via `SparseTreeStructure` we can calculate all the various reductions.
+
+```elixir
+simpleBinaryTreeWithEmptyNode
+|> Catamorphism.cata(
+  &SparseTreeStructure.recursion/2,
+  &SparseTreeStructure.Algebras.min/1
+)
+|> IO.inspect(label: "Min Value")
+
+simpleBinaryTreeWithEmptyNode
+|> Catamorphism.cata(
+  &SparseTreeStructure.recursion/2,
+  &SparseTreeStructure.Algebras.max/1
+)
+|> IO.inspect(label: "Max Value")
+
+simpleBinaryTreeWithEmptyNode
+|> Catamorphism.cata(
+  &SparseTreeStructure.recursion/2,
+  &SparseTreeStructure.Algebras.sum/1
+)
+|> IO.inspect(label: "Sum Value")
+
+simpleBinaryTreeWithEmptyNode
+|> Catamorphism.cata(
+  &SparseTreeStructure.recursion/2,
+  &SparseTreeStructure.Algebras.product/1
+)
+|> IO.inspect(label: "Product Value")
+
+simpleBinaryTreeWithEmptyNode
+|> Catamorphism.cata(
+  &SparseTreeStructure.recursion/2,
+  &SparseTreeStructure.Algebras.height/1
+)
+|> IO.inspect(label: "Height")
+
+simpleBinaryTreeWithEmptyNode
+|> Catamorphism.cata(
+  &SparseTreeStructure.recursion/2,
+  &SparseTreeStructure.Algebras.min_height/1
+)
+|> IO.inspect(label: "Min Height")
+
+simpleBinaryTreeWithEmptyNode
+|> Catamorphism.cata(
+  &SparseTreeStructure.recursion/2,
+  &SparseTreeStructure.Algebras.skew_height/1
+)
+|> IO.inspect(label: "Balanced")
+
+simpleBinaryTreeWithEmptyNode
+|> Catamorphism.cata(
+  &SparseTreeStructure.recursion/2,
+  SparseTreeStructure.Algebras.contains(4)
+)
+|> IO.inspect(label: "Contains 4")
+
+simpleBinaryTreeWithEmptyNode
+|> Catamorphism.cata(
+  &SparseTreeStructure.recursion/2,
+  SparseTreeStructure.Algebras.contains(33)
+)
+|> IO.inspect(label: "Contains 33")
+
+simpleBinaryTreeWithEmptyNode
+|> Catamorphism.cata(
+  &SparseTreeStructure.recursion/2,
+  &SparseTreeStructure.Algebras.to_string/1
+)
+|> IO.inspect(label: "To String")
+
+Kino.nothing()
+```
+
+## LinkedListStructure
+
+We can do the same for our linked list structure or even better for the Elixir/Erlang native linked list structure:
+
+```elixir
+defmodule LinkedListStructure do
+  # a list is either empty or [head | tail] with tail being the recursive field
+  def recursion(list, fun) do
+    case list do
+      [] ->
+        []
+
+      [head | tail] ->
+        # notice how the fun.() call marks the recursive field
+        [head | fun.(tail)]
+    end
+  end
+
+  defmodule Algebras do
+    # minimum value of a list
+    def min(list) do
+      case list do
+        [] -> :infinity
+        [h | t] -> min(h, t)
+      end
+    end
+
+    # max value of a list
+    def max(list) do
+      case list do
+        [] -> :neginf
+        [h | t] -> maxi(h, t)
+      end
+    end
+
+    # sum of a list
+    def sum(list) do
+      case list do
+        [] -> 0
+        [h | t] -> h + t
+      end
+    end
+
+    def product(list) do
+      case list do
+        [] -> 1
+        [h | t] -> h * t
+      end
+    end
+
+    def length(list) do
+      case list do
+        [] -> 0
+        [_h | t] -> 1 + t
+      end
+    end
+
+    def contains?(el) do
+      fn
+        [] -> false
+        [^el | _t] -> true
+        [_el | t] -> t
+      end
+    end
+
+    def any?(list) do
+      case list do
+        [] -> false
+        [h | t] -> h or t
+      end
+    end
+
+    def all?(list) do
+      case list do
+        [] -> true
+        [h | t] -> h and t
+      end
+    end
+
+    def reduce(initial, fun) do
+      fn
+        [] -> initial
+        [h | t] -> fun.(h, t)
+      end
+    end
+
+    def to_string_nested(list) do
+      case list do
+        [] -> "[]"
+        [h | t] -> "[#{h} | #{t}]"
+      end
+    end
+
+    def to_string_comma(list) do
+      case list do
+        [] -> "[]"
+        [h | "[]"] -> "[#{h}]"
+        [h | "[" <> t] -> "[#{h}, #{t}"
+      end
+    end
+
+    defp maxi(:neginf, a), do: a
+    defp maxi(a, :neginf), do: a
+    defp maxi(a, b), do: Kernel.max(a, b)
+  end
+end
+
+Kino.nothing()
+```
+
+## Reducing Lists
+
+We can apply all the reductions to our list in the same way as to our tree.
+
+```elixir
+[4, 8, 15, 16, 23, 42, 108]
+|> Catamorphism.cata(
+  &LinkedListStructure.recursion/2,
+  &LinkedListStructure.Algebras.min/1
+)
+|> IO.inspect(label: "Min Value")
+
+[4, 8, 15, 16, 23, 42, 108]
+|> Catamorphism.cata(
+  &LinkedListStructure.recursion/2,
+  &LinkedListStructure.Algebras.max/1
+)
+|> IO.inspect(label: "Max Value")
+
+[4, 8, 15, 16, 23, 42, 108]
+|> Catamorphism.cata(
+  &LinkedListStructure.recursion/2,
+  &LinkedListStructure.Algebras.length/1
+)
+|> IO.inspect(label: "Length Value")
+
+[4, 8, 15, 16, 23, 42, 108]
+|> Catamorphism.cata(
+  &LinkedListStructure.recursion/2,
+  &LinkedListStructure.Algebras.sum/1
+)
+|> IO.inspect(label: "sum Value")
+
+[4, 8, 15, 16, 23, 42, 108]
+|> Catamorphism.cata(
+  &LinkedListStructure.recursion/2,
+  &LinkedListStructure.Algebras.product/1
+)
+|> IO.inspect(label: "Product Value")
+
+[4, 8, 15, 16, 23, 42, 108]
+|> Catamorphism.cata(
+  &LinkedListStructure.recursion/2,
+  LinkedListStructure.Algebras.contains?(23)
+)
+|> IO.inspect(label: "Contains 23")
+
+[4, 8, 15, 16, 23, 42, 108]
+|> Catamorphism.cata(
+  &LinkedListStructure.recursion/2,
+  LinkedListStructure.Algebras.contains?(99)
+)
+|> IO.inspect(label: "Contains 99")
+
+[4, 8, 15, 16, 23, 42, 108]
+|> Catamorphism.cata(
+  &LinkedListStructure.recursion/2,
+  &LinkedListStructure.Algebras.to_string_nested/1
+)
+|> IO.inspect(label: "As List")
+
+[4, 8, 15, 16, 23, 42, 108]
+|> Catamorphism.cata(
+  &LinkedListStructure.recursion/2,
+  &LinkedListStructure.Algebras.to_string_comma/1
+)
+|> IO.inspect(label: "As Comma List")
+
+Kino.nothing()
+```
+
+Besides the Catamorphism that we discovered step by step on our own, there are many more recursion schemes, that have already been discovered, named and categorized.
+
+Lets take a look at two of them: Anamorphism and Hylomorphism
+
+## Anamorphism and Hylomorphism
+
+```elixir
+defmodule Anamorphism do
+  # the oppsoite of cata:
+  # take a single seed value and expand it into a recursive structure
+  # eg turn 5 into [1,2,3,4,5]
+  def ana(seed, mapRecur, handleCases) do
+    seed
+    |> handleCases.()
+    |> mapRecur.(fn
+      child -> ana(child, mapRecur, handleCases)
+    end)
+  end
+end
+
+defmodule Hylomorphism do
+  # composition of cata and ana:
+  # takes a single seed, turns it into a recursive structure 
+  # and then reduce this structure back into a value
+  def hylo(seed, mapRecur, coalgebra, algebra) do
+    seed
+    |> coalgebra.()
+    |> mapRecur.(fn
+      child -> hylo(child, mapRecur, coalgebra, algebra)
+    end)
+    |> algebra.()
+  end
+end
+
+Kino.nothing()
+```
+
+## Co-Algebras
+
+The common name for `handleCases` in the context of cata is *Algebra* and in the context of `ana` it is called *CoAlgebra*.
+
+We can define some co algebras for our `LinkedListStructure`
+
+```elixir
+defmodule LinkedListStructure.CoAlgebras do
+  # coundown takes a single value and produces a list like structure
+  # the result is not a proper list itself, but a const pair [a | b]
+  # with a being a value to put into a list and b the value for FROM WHICH
+  # the tail shall be generated.
+
+  # returning [5 | 4] results in a list containing the value 5 as head and the list
+  # generated from the seed 4 as tail
+  # ana(5, countdown) will generate the list [5,4,3,2,1]
+  def countdown(num) do
+    case num do
+      0 -> []
+      n -> [n | n - 1]
+    end
+  end
+
+  # ana(5, upto) will generate the list [1,2,3,4]
+  def upto(goal) do
+    fn
+      ^goal -> []
+      n -> [n | n + 1]
+    end
+  end
+
+  # ana(5, upto) will generate the list [1,2,3,4,5]
+  def upto_inclusive(goal) do
+    fn
+      :stop -> []
+      ^goal -> [goal | :stop]
+      n -> [n | n + 1]
+    end
+  end
+
+  # ana(6, repeat(7)) will generate the list [7,7,7,7,7,7]
+  def repeat(constant) do
+    fn
+      0 -> []
+      n -> [constant | n - 1]
+    end
+  end
+end
+
+Kino.nothing()
+```
+
+Now we can use the anamorphism together with our co-algebras to generate some lists.
+
+## Generating Lists
+
+```elixir
+8
+|> Anamorphism.ana(
+  &LinkedListStructure.recursion/2,
+  &LinkedListStructure.CoAlgebras.countdown/1
+)
+|> IO.inspect(label: "Countdown from 8")
+
+4
+|> Anamorphism.ana(
+  &LinkedListStructure.recursion/2,
+  LinkedListStructure.CoAlgebras.upto(8)
+)
+|> IO.inspect(label: "Count up till 8")
+
+4
+|> Anamorphism.ana(
+  &LinkedListStructure.recursion/2,
+  LinkedListStructure.CoAlgebras.upto_inclusive(8)
+)
+|> IO.inspect(label: "Count up to 8")
+
+6
+|> Anamorphism.ana(
+  &LinkedListStructure.recursion/2,
+  LinkedListStructure.CoAlgebras.repeat("sixseven")
+)
+|> IO.inspect(label: "Repeat")
+
+Kino.nothing()
+```
+
+## SparseTreeStructure Co-Algebras
+
+Next lets define some co-algebras for our `SparseTreeStructure` to generate some trees via anamorphism.
+
+```elixir
+defmodule SparseTreeStructure.CoAlgebras do
+  # ana(4, height) generates a tree of height 4
+  def grow_balanced(height) do
+    case height do
+      # 0 yields an empty node
+      0 -> :empty
+      # 1 yields a leaf containg a tree of height 0
+      1 -> {:leaf, height - 1}
+      # n yields a leaf containg the value n, and two trees of height n - 1 as children
+      h -> {:inner, h, h - 1, h - 1}
+    end
+  end
+
+  # a tree is barely balanced when for all inner nodes the height-difference
+  # between both children is exactly 1
+  def grow_barely_balanced(height) do
+    case height do
+      0 -> :empty
+      1 -> {:leaf, 1}
+      # a tree of height h shall have a left child 
+      # of height h - 1 and a right child of height h - 2 
+      h -> {:inner, h, h - 1, h - 2}
+    end
+  end
+
+  def grow_crazy(height) do
+    case height do
+      0 -> :empty
+      1 -> {:leaf, height - 1}
+      h -> {:inner, h, div(h, 4), div(h, 2)}
+    end
+  end
+
+  # ana({4,10}, from_size)
+  # will generate a tree with 10 nodes containing integers from 4 to 10
+  def from_size({min_value, node_count}) do
+    case node_count do
+      0 ->
+        :empty
+
+      1 ->
+        {:leaf, min_value}
+
+      n ->
+        left_size = div(n, 2)
+        right_size = n - left_size - 1
+        split = min_value + left_size
+        {:inner, split, {min_value, left_size}, {split + 1, right_size}}
+    end
+  end
+end
+
+Kino.nothing()
+```
+
+## Generating Trees
+
+```elixir
+3
+|> Anamorphism.ana(
+  &SparseTreeStructure.recursion/2,
+  &SparseTreeStructure.CoAlgebras.grow_balanced/1
+)
+|> IO.inspect(label: "Balanced Tree of Height 3")
+
+3
+|> Anamorphism.ana(
+  &SparseTreeStructure.recursion/2,
+  &SparseTreeStructure.CoAlgebras.grow_barely_balanced/1
+)
+|> IO.inspect(label: "Bare balanced Tree of Min-Height 3")
+
+32
+|> Anamorphism.ana(
+  &SparseTreeStructure.recursion/2,
+  &SparseTreeStructure.CoAlgebras.grow_crazy/1
+)
+|> IO.inspect(label: "Some Crazy Tree")
+
+{0, 16}
+|> Anamorphism.ana(
+  &SparseTreeStructure.recursion/2,
+  &SparseTreeStructure.CoAlgebras.from_size/1
+)
+|> IO.inspect(label: "Balanced Search Tree with values from 0 to 16")
+
+Kino.nothing()
+```
+
+## Gaußian Sum and Faculty
+
+Next lets compose some anamorphisms with catamorphisms. Lets generate a list and then reduce it to its sum or to its product.
+
+```elixir
+# multiply integers from 1 to 5
+5
+|> Anamorphism.ana(
+  # build list of integers from 5 to 1
+  &LinkedListStructure.recursion/2,
+  &LinkedListStructure.CoAlgebras.countdown/1
+)
+|> Catamorphism.cata(
+  &LinkedListStructure.recursion/2,
+  # reduce the list via multiplication
+  &LinkedListStructure.Algebras.product/1
+)
+|> IO.inspect(label: "5 Faculity")
+
+# sum integers from 1 to 100
+100
+|> Anamorphism.ana(
+  # build list of integers from 100 to 1
+  &LinkedListStructure.recursion/2,
+  &LinkedListStructure.CoAlgebras.countdown/1
+)
+|> Catamorphism.cata(
+  &LinkedListStructure.recursion/2,
+  # reduce the list via summation
+  &LinkedListStructure.Algebras.sum/1
+)
+|> IO.inspect(label: "Sum of integers from 1 to 100")
+
+Kino.nothing()
+```
+
+Instead of first using ana and then cata, we can combine both calls into hylo.
+
+```elixir
+# multiply integers from 1 to 5
+5
+|> Hylomorphism.hylo(
+  &LinkedListStructure.recursion/2,
+  # build list of integers from 5 to 1
+  &LinkedListStructure.CoAlgebras.countdown/1,
+  # reduce the list via multiplication
+  &LinkedListStructure.Algebras.product/1
+)
+|> IO.inspect(label: "5 Faculity")
+
+# sum integers from 1 to 100
+100
+|> Hylomorphism.hylo(
+  &LinkedListStructure.recursion/2,
+  # build list of integers from 100 to 1
+  &LinkedListStructure.CoAlgebras.countdown/1,
+  # reduce the list via summation
+  &LinkedListStructure.Algebras.sum/1
+)
+|> IO.inspect(label: "Sum of integers from 1 to 100")
+
+Kino.nothing()
+```
+
+Lets define another structure, this time with recursion structure, algebras and coalgebras all in one module.
+
+## LeafTreeStructure
+
+```elixir
+defmodule LeafTreeStructure do
+  # Our binary tree shall consist of either
+  # - leafs that store values
+  # - or inner nodes that have two children but NO own values
+  def recursion(tree, fun) do
+    case tree do
+      {:leaf, value} ->
+        {:leaf, value}
+
+      {:inner, left, right} ->
+        {
+          :inner,
+          # fun.() markes the recursive fields again
+          fun.(left),
+          # fun.() markes the recursive fields again
+          fun.(right)
+        }
+    end
+  end
+
+  # reducing a tree into a single values
+  defmodule Algebras do
+    # minimum value of a tree
+    def min(tree) do
+      case tree do
+        # the min of a leaf is its value
+        {:leaf, v} -> v
+        # the minimum of an inner node is  the min of the children
+        {:inner, l, r} -> min(l, r)
+      end
+    end
+
+    def max(tree) do
+      case tree do
+        {:leaf, v} -> v
+        {:inner, l, r} -> max(l, r)
+      end
+    end
+
+    def sum(tree) do
+      case tree do
+        {:leaf, v} -> v
+        {:inner, l, r} -> l + r
+      end
+    end
+
+    def product(tree) do
+      case tree do
+        {:leaf, v} -> v
+        {:inner, l, r} -> l * r
+      end
+    end
+
+    def count_leafs(tree) do
+      case tree do
+        {:leaf, _v} -> 1
+        {:inner, l, r} -> l + r
+      end
+    end
+
+    def count_inner(tree) do
+      case tree do
+        {:leaf, _v} -> 0
+        {:inner, l, r} -> 1 + l + r
+      end
+    end
+
+    def count_nodes(tree) do
+      case tree do
+        {:leaf, _v} -> 1
+        {:inner, l, r} -> 1 + l + r
+      end
+    end
+
+    # assume the tree contains lists as values,
+    # we can reduce the tree into a single list by merging two children lists
+    def merge(n) do
+      case n do
+        {:leaf, list} -> list
+        {:inner, left, right} -> merge(left, right)
+      end
+    end
+
+    defp merge([], right), do: right
+    defp merge(left, []), do: left
+    defp merge([l | ls], [r | rs]) when l <= r, do: [l | merge(ls, [r | rs])]
+    defp merge([l | ls], [r | rs]), do: [r | merge([l | ls], rs)]
+  end
+
+  # co algebras can generate trees from a seed
+  defmodule CoAlgebras do
+    # generate a balanced tree of given height
+    def grow_balanced(height) do
+      case height do
+        0 -> {:leaf, 0}
+        1 -> {:leaf, 1}
+        h -> {:inner, h - 1, h - 1}
+      end
+    end
+
+    # generate a barely balanced tree
+    # the height of two child tree differ by exactly one
+    def grow_barely_balanced(num) do
+      case num do
+        # height 0 -> a single node
+        0 -> {:leaf, 0}
+        # height 1 -> a single node
+        1 -> {:leaf, 1}
+        # an barely balanced node
+        n -> {:inner, n - 1, n - 2}
+      end
+    end
+
+    # turns list into a tree by splitting in the middle
+    def from_list(list) do
+      case list do
+        # empty list is put into a single leaf
+        [] ->
+          {:leaf, []}
+
+        # singleton list is put into a single leaf
+        [x] ->
+          {:leaf, [x]}
+
+        # longers lists are split in half and each half is turn into a tree
+        l ->
+          mid = div(length(l), 2)
+          {left, right} = Enum.split(l, mid)
+          {:inner, left, right}
+      end
+    end
+
+    # generate a tree containing values from start to (leaf_count-1) in its leafs
+    def from_size({start, leaf_count}) do
+      case leaf_count do
+        1 ->
+          {:leaf, start}
+
+        n ->
+          left_size = div(n, 2)
+          right_size = n - left_size
+          {:inner, {start, left_size}, {start + left_size, right_size}}
+      end
+    end
+  end
+end
+
+Kino.nothing()
+```
+
+We can use our `LeafTreeStructure` to calculate fibonacci numbers:
+
+## Fibonacci
+
+```elixir
+8
+|> Anamorphism.ana(
+  # grow barely balanced tree with 1-values in the leafs
+  &LeafTreeStructure.recursion/2,
+  &LeafTreeStructure.CoAlgebras.grow_barely_balanced/1
+)
+|> Catamorphism.cata(
+  # sum up all values
+  &LeafTreeStructure.recursion/2,
+  &LeafTreeStructure.Algebras.sum/1
+)
+|> IO.inspect(label: "Fibonacci of 8")
+
+Kino.nothing()
+```
+
+Again we can combine ana and cata into hylo and instead of  `LeafTreeStructure` we can even use our `SparseTreeStructure` to calculate the same result, but this time via counting leafs instead of summing them.
+
+```elixir
+8
+|> Hylomorphism.hylo(
+  &LeafTreeStructure.recursion/2,
+  # generate barely balacned tree
+  &LeafTreeStructure.CoAlgebras.grow_barely_balanced/1,
+  # sum up all values
+  &LeafTreeStructure.Algebras.sum/1
+)
+|> IO.inspect(label: "Fibonacci of 8")
+
+Kino.nothing()
+
+8
+|> Hylomorphism.hylo(
+  # generate barely balanced tree and count the leafs
+  &SparseTreeStructure.recursion/2,
+  &SparseTreeStructure.CoAlgebras.grow_barely_balanced/1,
+  &SparseTreeStructure.Algebras.count_leafs/1
+)
+|> IO.inspect(label: "Fibonacci of 8")
+
+Kino.nothing()
+```
+
+## Generating Lists
+
+We can genrate a tree containg integers:
+
+```elixir
+{0, 8}
+|> Anamorphism.ana(
+  # generate tree with values from 0 to 8
+  &LeafTreeStructure.recursion/2,
+  &LeafTreeStructure.CoAlgebras.from_size/1
+)
+|> IO.inspect(label: "Binary Tree of integers 0..8 in the Leafs", charlists: :as_list)
+
+Kino.nothing()
+```
+
+We can also turn a List into a tree containg singleton lists of the same elements.
+
+```elixir
+[1, 3, 4, 6, 8, 9, 10, 13, 14, 10]
+|> Anamorphism.ana(
+  # turn list into tree
+  &LeafTreeStructure.recursion/2,
+  &LeafTreeStructure.CoAlgebras.from_list/1
+)
+|> IO.inspect(label: "Tree generated from list of numbers", charlists: :as_list)
+
+Kino.nothing()
+```
+
+## Merge Sort
+
+We can sort a list by first turning it into a tree of singleton lists and them reducing them back into a single list again. Woah! Thats **merge-sort**!
+
+```elixir
+[4, 16, 8, 3, 42, 6, 7, 67, 108]
+# turn list into a tree of numbers
+|> Anamorphism.ana(
+  &LeafTreeStructure.recursion/2,
+  &LeafTreeStructure.CoAlgebras.from_list/1
+)
+# collapse tree back into a list
+|> Catamorphism.cata(
+  &LeafTreeStructure.recursion/2,
+  &LeafTreeStructure.Algebras.merge/1
+)
+|> IO.inspect(label: "Sorted List (merge sort)", charlists: :as_list)
+
+Kino.nothing()
+```
+
+Again we can combine ana and cata into hylo.
+
+```elixir
+[4, 16, 8, 3, 42, 6, 7, 67, 108]
+# turn list into tree and back into list
+|> Hylomorphism.hylo(
+  &LeafTreeStructure.recursion/2,
+  &LeafTreeStructure.CoAlgebras.from_list/1,
+  &LeafTreeStructure.Algebras.merge/1
+)
+|> IO.inspect(label: "Sorted List (merge sort)", charlists: :as_list)
+
+Kino.nothing()
+```
+
+In summary: **Merge-Sort** is an **hylomorphism**. ✨
+
+## Binary-Search
+
+Now you might think: If Merge-Sort is an hylomorphism... what about binary search?
+
+Lets build a search tree.
+
+```elixir
+defmodule SearchTreeStructure do
+  # the structure of a binary search tree with possibly empty nodes 
+  def recursion(tree, fun) do
+    case tree do
+      :empty ->
+        :empty
+
+      {:leaf, value} ->
+        {:leaf, value}
+
+      {:inner, inner_value, left, right} ->
+        {
+          :inner,
+          inner_value,
+          fun.(left),
+          fun.(right)
+        }
+    end
+  end
+
+  defmodule CoAlgebras do
+    # as before we can recursively split a sorted list into two child tree, 
+    # using the median as inner value
+    def from_list(list) do
+      case list do
+        [] ->
+          :empty
+
+        [x] ->
+          {:leaf, x}
+
+        l ->
+          mid = div(length(l), 2)
+          {left, [v | right]} = Enum.split(l, mid)
+          {:inner, v, left, right}
+      end
+    end
+  end
+
+  defmodule Algebras do
+    def binary_search(needle) do
+      fn
+        :empty -> false
+        {:leaf, ^needle} -> true
+        {:leaf, _v} -> false
+        {:inner, ^needle, _l, _r} -> true
+        {:inner, _v, l, r} -> l or r
+      end
+    end
+  end
+end
+
+Kino.nothing()
+```
+
+```elixir
+[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12]
+|> Anamorphism.ana(
+  # turn list into tree
+  &SearchTreeStructure.recursion/2,
+  &SearchTreeStructure.CoAlgebras.from_list/1
+)
+|> Catamorphism.cata(
+  # turn list into tree
+  &SearchTreeStructure.recursion/2,
+  SearchTreeStructure.Algebras.binary_search(11)
+)
+|> IO.inspect(label: "Search generated from list of numbers", charlists: :as_list)
+
+Kino.nothing()
+```
+
+```elixir
+defmodule BinarySearchSequence.CoAlgebras do
+  def binary_search_sequence_ana(needle) do
+    fn
+      :empty -> []
+      {:leaf, ^needle} -> [needle | :empty]
+      {:leaf, v} -> [v | :empty]
+      {:inner, ^needle, _l, _r} -> [needle | :empty]
+      {:inner, v, l, _r} when needle < v -> [v | l]
+      {:inner, v, _l, r} when needle > v -> [v | r]
+    end
+  end
+
+  def binary_search_ana(needle) do
+    fn
+      :empty -> []
+      {:leaf, ^needle} -> [true | :empty]
+      {:leaf, _v} -> []
+      {:inner, ^needle, _l, _r} -> [true | :empty]
+      {:inner, v, l, _r} when needle < v -> [false | l]
+      {:inner, v, _l, r} when needle > v -> [false | r]
+    end
+  end
+
+  def binary_search_direction_ana(needle) do
+    fn
+      :stop -> []
+      :empty -> [:miss | :stop]
+      {:leaf, ^needle} -> [:found | :stop]
+      {:leaf, _v} -> [:miss | :stop]
+      {:inner, ^needle, _l, _r} -> [:found | :stop]
+      {:inner, v, l, _r} when needle < v -> [:left | l]
+      {:inner, v, _l, r} when needle > v -> [:right | r]
+    end
+  end
+end
+
+Kino.nothing()
+```
+
+```elixir
+[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12]
+|> Anamorphism.ana(
+  &SearchTreeStructure.recursion/2,
+  &SearchTreeStructure.CoAlgebras.from_list/1
+)
+|> Anamorphism.ana(
+  &LinkedListStructure.recursion/2,
+  BinarySearchSequence.CoAlgebras.binary_search_sequence_ana(12)
+)
+|> IO.inspect(label: "Search-Sequence while searching for number 12", charlists: :as_list)
+
+[1, 2, 3, 4, 5, 7, 8, 9, 10, 12]
+|> Anamorphism.ana(
+  &SparseTreeStructure.recursion/2,
+  &SearchTreeStructure.CoAlgebras.from_list/1
+)
+|> Anamorphism.ana(
+  &LinkedListStructure.recursion/2,
+  BinarySearchSequence.CoAlgebras.binary_search_direction_ana(12)
+)
+|> IO.inspect(label: "Search-Sequence while searching for number 12", charlists: :as_list)
+
+[1, 2, 3, 4, 5, 7, 8, 9, 10, 12]
+|> Anamorphism.ana(
+  &SparseTreeStructure.recursion/2,
+  &SearchTreeStructure.CoAlgebras.from_list/1
+)
+|> Anamorphism.ana(
+  &LinkedListStructure.recursion/2,
+  BinarySearchSequence.CoAlgebras.binary_search_sequence_ana(6)
+)
+|> IO.inspect(label: "Search-Sequence while searching for number 6", charlists: :as_list)
+
+[1, 2, 3, 4, 5, 7, 8, 9, 10, 12]
+|> Anamorphism.ana(
+  &SparseTreeStructure.recursion/2,
+  &SearchTreeStructure.CoAlgebras.from_list/1
+)
+|> Anamorphism.ana(
+  &LinkedListStructure.recursion/2,
+  BinarySearchSequence.CoAlgebras.binary_search_direction_ana(6)
+)
+|> IO.inspect(label: "Search-Sequence while searching for number 6", charlists: :as_list)
+
+Kino.nothing()
+```
+
+```elixir
+[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12]
+|> Anamorphism.ana(
+  &SearchTreeStructure.recursion/2,
+  &SearchTreeStructure.CoAlgebras.from_list/1
+)
+|> Anamorphism.ana(
+  &LinkedListStructure.recursion/2,
+  BinarySearchSequence.CoAlgebras.binary_search_ana(12)
+)
+|> Catamorphism.cata(
+  &LinkedListStructure.recursion/2,
+  &LinkedListStructure.Algebras.any?/1
+)
+|> IO.inspect(label: "Binary-Search for number 12", charlists: :as_list)
+
+[1, 2, 3, 4, 5, 7, 8, 9, 10, 12]
+|> Anamorphism.ana(
+  &SearchTreeStructure.recursion/2,
+  &SearchTreeStructure.CoAlgebras.from_list/1
+)
+|> Anamorphism.ana(
+  &LinkedListStructure.recursion/2,
+  BinarySearchSequence.CoAlgebras.binary_search_ana(6)
+)
+|> Catamorphism.cata(
+  &LinkedListStructure.recursion/2,
+  &LinkedListStructure.Algebras.any?/1
+)
+|> IO.inspect(label: "Binary-Search for number 6", charlists: :as_list)
+
+Kino.nothing()
+```
+
+Again we can combine anamorphism and cata morphism into hylomorphism.
+
+```elixir
+[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12]
+|> Anamorphism.ana(
+  &SearchTreeStructure.recursion/2,
+  &SearchTreeStructure.CoAlgebras.from_list/1
+)
+|> Hylomorphism.hylo(
+  &LinkedListStructure.recursion/2,
+  BinarySearchSequence.CoAlgebras.binary_search_ana(12),
+  &LinkedListStructure.Algebras.any?/1
+)
+|> IO.inspect(label: "Binary-Search for number 12", charlists: :as_list)
+
+[1, 2, 3, 4, 5, 7, 8, 9, 10, 12]
+|> Anamorphism.ana(
+  &SearchTreeStructure.recursion/2,
+  &SearchTreeStructure.CoAlgebras.from_list/1
+)
+|> Hylomorphism.hylo(
+  &LinkedListStructure.recursion/2,
+  BinarySearchSequence.CoAlgebras.binary_search_ana(6),
+  &LinkedListStructure.Algebras.any?/1
+)
+|> IO.inspect(label: "Binary-Search for number 6", charlists: :as_list)
+
+Kino.nothing()
+```
+
+first sort a list via merge sort hylomorphism and then search via binary search and for number to output the search sequence.
+
+```elixir
+search_tree =
+  [4, 16, 8, 3, 42, 6, 7, 67, 108]
+  # turn list into tree and back into list
+  |> Hylomorphism.hylo(
+    &LeafTreeStructure.recursion/2,
+    &LeafTreeStructure.CoAlgebras.from_list/1,
+    &LeafTreeStructure.Algebras.merge/1
+  )
+  |> Anamorphism.ana(
+    &SearchTreeStructure.recursion/2,
+    &SearchTreeStructure.CoAlgebras.from_list/1
+  )
+
+for needle <- [12, 42] do
+  search_tree
+  |> Hylomorphism.hylo(
+    &LinkedListStructure.recursion/2,
+    BinarySearchSequence.CoAlgebras.binary_search_ana(needle),
+    &LinkedListStructure.Algebras.any?/1
+  )
+  |> IO.inspect(label: "Binary-Search for number #{needle}", charlists: :as_list)
+
+  search_tree
+  |> Anamorphism.ana(
+    &LinkedListStructure.recursion/2,
+    BinarySearchSequence.CoAlgebras.binary_search_sequence_ana(needle)
+  )
+  |> IO.inspect(label: "Binary-Search for number #{needle}", charlists: :as_list)
+
+  search_tree
+  |> Anamorphism.ana(
+    &LinkedListStructure.recursion/2,
+    BinarySearchSequence.CoAlgebras.binary_search_direction_ana(needle)
+  )
+  |> IO.inspect(label: "Binary-Search for number #{needle}", charlists: :as_list)
+end
+
+Kino.nothing()
+```
