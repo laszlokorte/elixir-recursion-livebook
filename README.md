@@ -1,4 +1,4 @@
-![Icon](./icon.svg)
+<img src="icon.svg" width="100" height="100" />
 
 # Recursion Schemes
 
