@@ -8,7 +8,6 @@ You will learn what are catamorphisms, anamorphisms and hylomorphism and will le
 ```elixir
 search_tree =
   [4, 16, 8, 3, 42, 6, 7, 67, 108]
-  # turn list into tree and back into list
   |> Hylomorphism.hylo(
     &LeafTreeStructure.recursion/2,
     &LeafTreeStructure.CoAlgebras.from_list/1,
@@ -43,5 +42,11 @@ for needle <- [12, 42] do
   |> IO.inspect(label: "Binary-Search for number #{needle}", charlists: :as_list)
 end
 
-Kino.nothing()
+# => Binary-Search for number 12: false
+# => Binary-Search for number 12: [8, 67, 42, 16]
+# => Binary-Search for number 12: [:right, :left, :left, :miss]
+# => Binary-Search for number 42: true
+# => Binary-Search for number 42: [8, 67, 42]
+# => Binary-Search for number 42: [:right, :left, :found]
+
 ```
