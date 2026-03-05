@@ -454,7 +454,7 @@ defmodule TreeToString do
 
   def toString({:leaf, value}) do
     "[#{value}]"
-    endc
+  end
 
   def toString({:inner, left, right}) do
     "(#{toString(left)}:#{toString(right)})"
@@ -471,17 +471,7 @@ Kino.nothing()
 <!-- livebook:{"output":true} -->
 
 ```
-** (TokenMissingError) token missing on /data/recursion-schemes/intro.livemd#cell:ktvpjocfc3qb6ktn:17:15:
-    error: missing terminator: end
-    hint: it looks like the "do" on line 4 does not have a matching "end"
-    │
-  1 │ defmodule TreeToString do
-    │                        └ unclosed delimiter
- ...
- 17 │ Kino.nothing()
-    │               └ missing closing delimiter (expected "end")
-    │
-    └─ /data/recursion-schemes/intro.livemd#cell:ktvpjocfc3qb6ktn:17:15
+Tree as String: "(([2]:[3]):([5]:([2]:[3])))"
 ```
 
 All the implementations above look very similar. All of them check if the current node we are looking at is a leaf (i.e. has a value property). If so, a base case result is returned, either a constant or a some other value based only on the value stored in the leaf. If on the other hand the current node is an inner node, two recursive function calls are invoked (one for the left and one for the right branch of the tree) and then their result is combined in a speicific way.
