@@ -34,7 +34,7 @@ end
 Kino.nothing()
 ```
 
-The next one does the same but but uses an accumultor to eagerly build the resulting list.
+The next one does the same but uses an accumultor to eagerly build the resulting list.
 
 ```elixir
 defmodule TailRecursion do
@@ -743,7 +743,7 @@ What we pass to the handleCases looks structurally exactly like a node of the th
 For each of our data structures we can think of having actually two different but matching storage structures: One that stores the actual tree and one that stores the result of doing a single recursive calculation step at one tree node. Both look like {value, left, right} | {value} on the surface but differ in their content: The one storing the tree is actually {value: Number, left: Tree, right: Tree} | {value: number} and the other, for storing a caculation result, is: {value: Number, left: Number, right: Number} | {value: number}.
 
 ```elixir
-defmodule Ellipsis do 
+defmodule Ellipsis do
   def ..., do: nil
 end
 alias Ellipsis
@@ -758,7 +758,7 @@ actualInnerTreeNode = {
   5,
   # left child, being itself a tree node recursively
   {...},
-  # right child, being itself a tree node recursively 
+  # right child, being itself a tree node recursively
   {...}
 }
 
@@ -768,13 +768,13 @@ recursionResultTreeNode = {
   :inner,
   # copy of the value stored in the original tree node,
   5,
-  # not a recursive child node, 
+  # not a recursive child node,
   23,
-  # but just the result of the recursive function call on the 
+  # but just the result of the recursive function call on the
   # left child of the original tree node
-  # not a recursive child node, but just the result of the 
+  # not a recursive child node, but just the result of the
   42
-  # recursive function call on the right child of the original tree node 
+  # recursive function call on the right child of the original tree node
 }
 
 # an actual node from the recursive tree structure
@@ -1136,7 +1136,7 @@ Now we can express a recursive data structure as a combinations of mapping over 
 
 ```elixir
 defmodule SparseTreeStructure do
-  # the structure of a tree with possibly empty nodes 
+  # the structure of a tree with possibly empty nodes
   def recursion(tree, fun) do
     case tree do
       :empty ->
@@ -1579,7 +1579,7 @@ end
 
 defmodule Hylomorphism do
   # composition of cata and ana:
-  # takes a single seed, turns it into a recursive structure 
+  # takes a single seed, turns it into a recursive structure
   # and then reduce this structure back into a value
   def hylo(seed, mapRecur, coalgebra, algebra) do
     seed
@@ -1706,8 +1706,8 @@ defmodule SparseTreeStructure.CoAlgebras do
     case height do
       0 -> :empty
       1 -> {:leaf, 1}
-      # a tree of height h shall have a left child 
-      # of height h - 1 and a right child of height h - 2 
+      # a tree of height h shall have a left child
+      # of height h - 1 and a right child of height h - 2
       h -> {:inner, h, h - 1, h - 2}
     end
   end
@@ -2119,7 +2119,7 @@ Lets build a search tree.
 
 ```elixir
 defmodule SearchTreeStructure do
-  # the structure of a binary search tree with possibly empty nodes 
+  # the structure of a binary search tree with possibly empty nodes
   def recursion(tree, fun) do
     case tree do
       :empty ->
@@ -2139,7 +2139,7 @@ defmodule SearchTreeStructure do
   end
 
   defmodule CoAlgebras do
-    # as before we can recursively split a sorted list into two child tree, 
+    # as before we can recursively split a sorted list into two child tree,
     # using the median as inner value
     def from_list(list) do
       case list do
