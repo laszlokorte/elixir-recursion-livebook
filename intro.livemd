@@ -1,3 +1,5 @@
+<!-- livebook:{"persist_outputs":true} -->
+
 # Recursion Schemes
 
 ```elixir
@@ -34,7 +36,13 @@ end
 Kino.nothing()
 ```
 
-The next one does the same but uses an accumultor to eagerly build the resulting list.
+<!-- livebook:{"output":true} -->
+
+```
+Doubled: [2, 4, 6]
+```
+
+The next one does the same but but uses an accumultor to eagerly build the resulting list.
 
 ```elixir
 defmodule TailRecursion do
@@ -52,6 +60,12 @@ end
 |> IO.inspect(label: "Doubled")
 
 Kino.nothing()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Doubled: [6, 4, 2]
 ```
 
 The next one achieves the same result but splits the task of iteration and the task of element-wise calculation into two separate functions. The function doing the interation and collecting the resulting values is called `List.map`, or typically just `map`.
@@ -74,6 +88,12 @@ end
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Doubled: [6, 4, 2]
+```
+
 ```elixir
 [1, 2, 3]
 # using the builtin Enum.map
@@ -81,6 +101,12 @@ Kino.nothing()
 |> IO.inspect(label: "Doubled")
 
 Kino.nothing()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Doubled: [2, 4, 6]
 ```
 
 There are many advantages of separating the iteration from the element-wise calculation. The most obvious advantage is that the iteration has only to be defined once and can be reused for various different operations:
@@ -99,6 +125,14 @@ There are many advantages of separating the iteration from the element-wise calc
 |> IO.inspect(label: "Even")
 
 Kino.nothing()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Tripled: [9, 6, 3]
+Incremented: [4, 3, 2]
+Even: [false, true, false]
 ```
 
 Another advantage is that the intentions and invariants of the task are expressed more clearly and explcitly. Applying the map function will not change the number of elements in the array and it will not change the order of the elements.
@@ -145,6 +179,14 @@ end
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Tripled: [3, 6, 9]
+Incremented: [2, 3, 4]
+Even: [false, true, false]
+```
+
 The fourth advantage is that the same concept of applying an element-wise transformation can be implemented for other containers of elements. For example for a binary tree as the one below:
 
 ```elixir
@@ -156,6 +198,15 @@ simpleBinaryTree = {
 
 simpleBinaryTree |> IO.inspect(label: "Tree of Tuples", width: 35, pretty: true)
 Kino.nothing()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Tree of Tuples: {:inner,
+ {:inner, {:leaf, 2}, {:leaf, 3}},
+ {:inner, {:leaf, 5},
+  {:inner, {:leaf, 2}, {:leaf, 3}}}}
 ```
 
 A corresponding map function could be implemented as follows:
@@ -210,6 +261,22 @@ simpleBinaryTree
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Original Tree: {:inner, {:inner, {:leaf, 2}, {:leaf, 3}},
+ {:inner, {:leaf, 5}, {:inner, {:leaf, 2}, {:leaf, 3}}}}
+
+Tripled: {:inner, {:inner, {:leaf, 6}, {:leaf, 9}},
+ {:inner, {:leaf, 15}, {:inner, {:leaf, 6}, {:leaf, 9}}}}
+
+Incremented: {:inner, {:inner, {:leaf, 3}, {:leaf, 4}},
+ {:inner, {:leaf, 6}, {:inner, {:leaf, 3}, {:leaf, 4}}}}
+
+Even: {:inner, {:inner, {:leaf, true}, {:leaf, false}},
+ {:inner, {:leaf, false}, {:inner, {:leaf, true}, {:leaf, false}}}}
+```
+
 Now we have seen that separating the stepping from the work to do at each step is a powerful abstraction when doing computations on each element in a data structure.
 
 ## Recursive data structures
@@ -252,6 +319,12 @@ simpleBinaryTree
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Tree Height: 4
+```
+
 For the total number of leafs the result is 1 if the node itself is a leaf. For inner nodes we sum the number of leafs of the left child with the number of leafs of the right child:
 
 ```elixir
@@ -273,6 +346,12 @@ simpleBinaryTree
 |> IO.inspect(label: "Leaf Count")
 
 Kino.nothing()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Leaf Count: 5
 ```
 
 For the total node count the do the same as for counting the leafs but also add +1 in case of the inner node, to count this node as well.
@@ -297,6 +376,12 @@ simpleBinaryTree
 |> IO.inspect(label: "Node Count")
 
 Kino.nothing()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Node Count: 9
 ```
 
 For the minimum value stored in a tree (our tree stores values only in its leafs), we take the minimum of either the left or the right child tree. For leaf nodes we just take their value.
@@ -324,6 +409,12 @@ simpleBinaryTree
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Min Value: 2
+```
+
 For the maximum value stored in a tree (our tree stores values only in its leafs), we do the same as for the minimum value, but taking the maximum of two children:
 
 ```elixir
@@ -349,6 +440,12 @@ simpleBinaryTree
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Max Value: 5
+```
+
 For turning the Tree into a string the concat the stringified left child to the stringified right child. For leaf nodes we turn the value stored in the node into a string. We also append some parenthisis to reflect the tree structure in the string.
 
 ```elixir
@@ -369,6 +466,22 @@ simpleBinaryTree
 |> IO.inspect(label: "Tree as String")
 
 Kino.nothing()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+** (TokenMissingError) token missing on /data/recursion-schemes/intro.livemd#cell:ktvpjocfc3qb6ktn:17:15:
+    error: missing terminator: end
+    hint: it looks like the "do" on line 4 does not have a matching "end"
+    │
+  1 │ defmodule TreeToString do
+    │                        └ unclosed delimiter
+ ...
+ 17 │ Kino.nothing()
+    │               └ missing closing delimiter (expected "end")
+    │
+    └─ /data/recursion-schemes/intro.livemd#cell:ktvpjocfc3qb6ktn:17:15
 ```
 
 All the implementations above look very similar. All of them check if the current node we are looking at is a leaf (i.e. has a value property). If so, a base case result is returned, either a constant or a some other value based only on the value stored in the leaf. If on the other hand the current node is an inner node, two recursive function calls are invoked (one for the left and one for the right branch of the tree) and then their result is combined in a speicific way.
@@ -425,6 +538,17 @@ simpleBinaryTree
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Tree Height: 4
+Leaf Count: 5
+Node Count: 9
+Min Value: 2
+Max Value: 5
+Tree as String: "(([2], [3]), ([5], ([2], [3])))"
+```
+
 That worked great! We have successfully abstracted the recursion into a single binaryTreeReduce function. Are we done yet? Have we mastered the recursion scheme? Almost, but we are not quite there yet.
 
 ## Other recursive data structures
@@ -450,12 +574,25 @@ simpleBinaryTreeWithInnerValues |> IO.inspect(label: "Tree of Tuples with inner 
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Tree of Tuples with inner values: {:inner, 4, {:inner, 8, {:leaf, 23}, {:leaf, 42}},
+ {:inner, 16, {:leaf, 32}, {:inner, 64, {:leaf, 108}, {:leaf, 99}}}}
+```
+
 ```elixir
 simpleLinkedList = {42, {23, {16, {8, {4, {}}}}}}
 
 simpleLinkedList |> IO.inspect(label: "simpleLinkedList")
 
 Kino.nothing()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+simpleLinkedList: {42, {23, {16, {8, {4, {}}}}}}
 ```
 
 ```elixir
@@ -469,6 +606,13 @@ simpleBinaryTreeWithEmptyNode = {
 simpleBinaryTreeWithEmptyNode |> IO.inspect(label: "Tree of Tuples with inner values")
 
 Kino.nothing()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Tree of Tuples with inner values: {:inner, 4, {:inner, 8, {:leaf, 23}, :empty},
+ {:inner, 16, :empty, {:inner, 42, :empty, {:leaf, 108}}}}
 ```
 
 Our next goal is again to recognize a pattern between all these structures that can then be generalized. Lets try to implement the function to find the minimum element of each of these three structures. Afterwards we try to see a common pattern in each of the three implementations:
@@ -497,6 +641,12 @@ simpleBinaryTreeWithInnerValues
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Min Value: 4
+```
+
 ```elixir
 defmodule LinkedListMinValue do
   def minValue(list, fallback \\ :infinity)
@@ -518,6 +668,12 @@ simpleLinkedList
 |> IO.inspect(label: "Min Value")
 
 Kino.nothing()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Min Value: 4
 ```
 
 ```elixir
@@ -546,6 +702,12 @@ simpleBinaryTreeWithEmptyNode
 |> IO.inspect(label: "Min Value")
 
 Kino.nothing()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Min Value: 4
 ```
 
 We can observe that each of theses functions differ in the number of branches, depending on the structure of the recursive data structure. For the linked list we need only two branches, one for the nil case at the end of the list and one for the case of list having a head. For the binary tree with either an inner node with left/right children or an empty node or a leaf node with a single value, the recursive function needs to handle each of the three conditions.
@@ -580,6 +742,12 @@ simpleBinaryTreeWithInnerValues
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Min Value: 4
+```
+
 For processing the linked list we also accept two callbacks: one for handling the empty case and one for handling a head. Notice that for handling the fallback case of an empty list we will provide it as function returning a constant instead of a constant itself. This is for consistency reasons.
 
 ```elixir
@@ -603,6 +771,12 @@ simpleLinkedList
 |> IO.inspect(label: "Min Value")
 
 Kino.nothing()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Min Value: 4
 ```
 
 For the tree with maybe empty nodes we had to consider three cases and accordingly accept three different callback functions to handle them. Same as with the linked list we model the fallback value for the empty case as callback function as well.
@@ -639,6 +813,12 @@ simpleBinaryTreeWithEmptyNode
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Min Value: 4
+```
+
 Now we can see even more cleary that the number of needed handle-callbacks for each reduction vary and that even the number of argument each of these handle-callback takes, varies. For example handleEmpty takes now arguments but handleInner for one of the trees may take 3.
 
 At a first glance it does not seem possible to unify the arguments of these different reudction function into a single generic function that works for both lists, trees and other recursive data strutures. Now comes the brilliant idea:
@@ -673,6 +853,12 @@ end)
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Min Value: 4
+```
+
 ```elixir
 defmodule LinkedListReduceUnified do
   def reduceValue(tree, handleCases)
@@ -697,6 +883,12 @@ end)
 |> IO.inspect(label: "Min Value")
 
 Kino.nothing()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Min Value: 4
 ```
 
 ```elixir
@@ -732,6 +924,12 @@ end)
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Min Value: 4
+```
+
 Did you notice what we did here? We merged all the callback functions into a single handleCases callback that takes only a single value as argument. What what exactly is this argument that we pass to handleCases? It is either an object containing the results of the recusive function calls, or the value store in the leafs of the data structure, in case we hit a base case, or a special marker object in case we are in an empty case.
 
 But look again: the value we pass to handleCases exactly reflects the structure of the node we are currently processing.
@@ -743,10 +941,16 @@ What we pass to the handleCases looks structurally exactly like a node of the th
 For each of our data structures we can think of having actually two different but matching storage structures: One that stores the actual tree and one that stores the result of doing a single recursive calculation step at one tree node. Both look like {value, left, right} | {value} on the surface but differ in their content: The one storing the tree is actually {value: Number, left: Tree, right: Tree} | {value: number} and the other, for storing a caculation result, is: {value: Number, left: Number, right: Number} | {value: number}.
 
 ```elixir
-defmodule Ellipsis do
+defmodule Ellipsis do 
   def ..., do: nil
 end
 alias Ellipsis
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Ellipsis
 ```
 
 ```elixir
@@ -758,7 +962,7 @@ actualInnerTreeNode = {
   5,
   # left child, being itself a tree node recursively
   {...},
-  # right child, being itself a tree node recursively
+  # right child, being itself a tree node recursively 
   {...}
 }
 
@@ -768,13 +972,13 @@ recursionResultTreeNode = {
   :inner,
   # copy of the value stored in the original tree node,
   5,
-  # not a recursive child node,
+  # not a recursive child node, 
   23,
-  # but just the result of the recursive function call on the
+  # but just the result of the recursive function call on the 
   # left child of the original tree node
-  # not a recursive child node, but just the result of the
+  # not a recursive child node, but just the result of the 
   42
-  # recursive function call on the right child of the original tree node
+  # recursive function call on the right child of the original tree node 
 }
 
 # an actual node from the recursive tree structure
@@ -848,6 +1052,12 @@ end)
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Min Value: 4
+```
+
 ```elixir
 defmodule TreeReduceUnifiedReview do
   def reduceValue(tree, handleCases) do
@@ -886,6 +1096,12 @@ end)
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Min Value: 4
+```
+
 ```elixir
 defmodule LinkedListReduceUnifiedReview do
   def reduceValue(tree, handleCases) do
@@ -919,6 +1135,12 @@ end)
 |> IO.inspect(label: "Min Value")
 
 Kino.nothing()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Min Value: 4
 ```
 
 Wow! All the cases in binaryTreeWithEmptyNodesReduce (and the other ...Reduce functions respectively) are following exactly the same structure. The just copy the node, replacing the recursive fields and apply the handleCases function to the now flat copy of the node.
@@ -979,6 +1201,12 @@ end)
 |> IO.inspect(label: "Min Value")
 
 Kino.nothing()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Min Value: 4
 ```
 
 Now look at that! The binaryTreeRecursionReplacer looks almost like our map function from the beginning, but instead of applying the provided function (replacer) to the value stored in a node, the function is applied to the recursive fields (left and right). So we can think of it as an alternative completly different way of mapping over the tree node.
@@ -1043,6 +1271,12 @@ simpleBinaryTreeWithEmptyNode
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Min Value: 4
+```
+
 ```elixir
 defmodule LinkedListRecursionMap do
   # the recursive structure of a singly linked list
@@ -1072,6 +1306,12 @@ simpleLinkedList
 |> IO.inspect(label: "Min Value")
 
 Kino.nothing()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Min Value: 4
 ```
 
 ```elixir
@@ -1107,6 +1347,12 @@ simpleBinaryTreeWithInnerValues
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Min Value: 4
+```
+
 ## Catamorphism
 
 This specific recursion scheme is called *catamorphism* because *cata* is greek for collapsing and what all our functions had in common is that they collapsed the trees or lists they were given into a single value. Yes, Array.reduce is also a catamorphism.
@@ -1136,7 +1382,7 @@ Now we can express a recursive data structure as a combinations of mapping over 
 
 ```elixir
 defmodule SparseTreeStructure do
-  # the structure of a tree with possibly empty nodes
+  # the structure of a tree with possibly empty nodes 
   def recursion(tree, fun) do
     case tree do
       :empty ->
@@ -1376,6 +1622,21 @@ simpleBinaryTreeWithEmptyNode
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Min Value: 4
+Max Value: 108
+Sum Value: 201
+Product Value: 53415936
+Height: 4
+Min Height: 2
+Balanced: {2, 4}
+Contains 4: true
+Contains 33: false
+To String: "{{[23]:8:(X)}:4:{(X):16:{(X):42:[108]}}}"
+```
+
 ## LinkedListStructure
 
 We can do the same for our linked list structure or even better for the Elixir/Erlang native linked list structure:
@@ -1557,6 +1818,20 @@ We can apply all the reductions to our list in the same way as to our tree.
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Min Value: 4
+Max Value: 108
+Length Value: 7
+sum Value: 216
+Product Value: 801239040
+Contains 23: true
+Contains 99: false
+As List: "[4 | [8 | [15 | [16 | [23 | [42 | [108 | []]]]]]]]"
+As Comma List: "[4, 8, 15, 16, 23, 42, 108]"
+```
+
 Besides the Catamorphism that we discovered step by step on our own, there are many more recursion schemes, that have already been discovered, named and categorized.
 
 Lets take a look at two of them: Anamorphism and Hylomorphism
@@ -1579,7 +1854,7 @@ end
 
 defmodule Hylomorphism do
   # composition of cata and ana:
-  # takes a single seed, turns it into a recursive structure
+  # takes a single seed, turns it into a recursive structure 
   # and then reduce this structure back into a value
   def hylo(seed, mapRecur, coalgebra, algebra) do
     seed
@@ -1682,6 +1957,15 @@ Now we can use the anamorphism together with our co-algebras to generate some li
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Countdown from 8: [8, 7, 6, 5, 4, 3, 2, 1]
+Count up till 8: [4, 5, 6, 7]
+Count up to 8: [4, 5, 6, 7, 8]
+Repeat: ["sixseven", "sixseven", "sixseven", "sixseven", "sixseven", "sixseven"]
+```
+
 ## SparseTreeStructure Co-Algebras
 
 Next lets define some co-algebras for our `SparseTreeStructure` to generate some trees via anamorphism.
@@ -1706,8 +1990,8 @@ defmodule SparseTreeStructure.CoAlgebras do
     case height do
       0 -> :empty
       1 -> {:leaf, 1}
-      # a tree of height h shall have a left child
-      # of height h - 1 and a right child of height h - 2
+      # a tree of height h shall have a left child 
+      # of height h - 1 and a right child of height h - 2 
       h -> {:inner, h, h - 1, h - 2}
     end
   end
@@ -1776,6 +2060,25 @@ Kino.nothing()
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Balanced Tree of Height 3: {:inner, 3, {:inner, 2, {:leaf, 0}, {:leaf, 0}},
+ {:inner, 2, {:leaf, 0}, {:leaf, 0}}}
+Bare balanced Tree of Min-Height 3: {:inner, 3, {:inner, 2, {:leaf, 1}, :empty}, {:leaf, 1}}
+Some Crazy Tree: {:inner, 32,
+ {:inner, 8, {:inner, 2, :empty, {:leaf, 0}},
+  {:inner, 4, {:leaf, 0}, {:inner, 2, :empty, {:leaf, 0}}}},
+ {:inner, 16, {:inner, 4, {:leaf, 0}, {:inner, 2, :empty, {:leaf, 0}}},
+  {:inner, 8, {:inner, 2, :empty, {:leaf, 0}},
+   {:inner, 4, {:leaf, 0}, {:inner, 2, :empty, {:leaf, 0}}}}}}
+Balanced Search Tree with values from 0 to 16: {:inner, 8,
+ {:inner, 4, {:inner, 2, {:inner, 1, {:leaf, 0}, :empty}, {:leaf, 3}},
+  {:inner, 6, {:leaf, 5}, {:leaf, 7}}},
+ {:inner, 12, {:inner, 10, {:leaf, 9}, {:leaf, 11}},
+  {:inner, 14, {:leaf, 13}, {:leaf, 15}}}}
+```
+
 ## Gaußian Sum and Faculty
 
 Next lets compose some anamorphisms with catamorphisms. Lets generate a list and then reduce it to its sum or to its product.
@@ -1812,6 +2115,13 @@ Next lets compose some anamorphisms with catamorphisms. Lets generate a list and
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+5 Faculity: 120
+Sum of integers from 1 to 100: 5050
+```
+
 Instead of first using ana and then cata, we can combine both calls into hylo.
 
 ```elixir
@@ -1838,6 +2148,13 @@ Instead of first using ana and then cata, we can combine both calls into hylo.
 |> IO.inspect(label: "Sum of integers from 1 to 100")
 
 Kino.nothing()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+5 Faculity: 120
+Sum of integers from 1 to 100: 5050
 ```
 
 Lets define another structure, this time with recursion structure, algebras and coalgebras all in one module.
@@ -2016,6 +2333,12 @@ We can use our `LeafTreeStructure` to calculate fibonacci numbers:
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Fibonacci of 8: 21
+```
+
 Again we can combine ana and cata into hylo and instead of  `LeafTreeStructure` we can even use our `SparseTreeStructure` to calculate the same result, but this time via counting leafs instead of summing them.
 
 ```elixir
@@ -2043,6 +2366,13 @@ Kino.nothing()
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Fibonacci of 8: 21
+Fibonacci of 8: 21
+```
+
 ## Generating Lists
 
 We can genrate a tree containg integers:
@@ -2059,6 +2389,14 @@ We can genrate a tree containg integers:
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Binary Tree of integers 0..8 in the Leafs: {:inner,
+ {:inner, {:inner, {:leaf, 0}, {:leaf, 1}}, {:inner, {:leaf, 2}, {:leaf, 3}}},
+ {:inner, {:inner, {:leaf, 4}, {:leaf, 5}}, {:inner, {:leaf, 6}, {:leaf, 7}}}}
+```
+
 We can also turn a List into a tree containg singleton lists of the same elements.
 
 ```elixir
@@ -2071,6 +2409,16 @@ We can also turn a List into a tree containg singleton lists of the same element
 |> IO.inspect(label: "Tree generated from list of numbers", charlists: :as_list)
 
 Kino.nothing()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Tree generated from list of numbers: {:inner,
+ {:inner, {:inner, {:leaf, [1]}, {:leaf, [3]}},
+  {:inner, {:leaf, [4]}, {:inner, {:leaf, [6]}, {:leaf, [8]}}}},
+ {:inner, {:inner, {:leaf, [9]}, {:leaf, [10]}},
+  {:inner, {:leaf, [13]}, {:inner, {:leaf, [14]}, {:leaf, [10]}}}}}
 ```
 
 ## Merge Sort
@@ -2094,6 +2442,12 @@ We can sort a list by first turning it into a tree of singleton lists and them r
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Sorted List (merge sort): [3, 4, 6, 7, 8, 16, 42, 67, 108]
+```
+
 Again we can combine ana and cata into hylo.
 
 ```elixir
@@ -2109,6 +2463,12 @@ Again we can combine ana and cata into hylo.
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Sorted List (merge sort): [3, 4, 6, 7, 8, 16, 42, 67, 108]
+```
+
 In summary: **Merge-Sort** is an **hylomorphism**. ✨
 
 ## Binary-Search
@@ -2119,7 +2479,7 @@ Lets build a search tree.
 
 ```elixir
 defmodule SearchTreeStructure do
-  # the structure of a binary search tree with possibly empty nodes
+  # the structure of a binary search tree with possibly empty nodes 
   def recursion(tree, fun) do
     case tree do
       :empty ->
@@ -2139,7 +2499,7 @@ defmodule SearchTreeStructure do
   end
 
   defmodule CoAlgebras do
-    # as before we can recursively split a sorted list into two child tree,
+    # as before we can recursively split a sorted list into two child tree, 
     # using the median as inner value
     def from_list(list) do
       case list do
@@ -2188,6 +2548,12 @@ Kino.nothing()
 |> IO.inspect(label: "Search generated from list of numbers", charlists: :as_list)
 
 Kino.nothing()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Search generated from list of numbers: false
 ```
 
 ```elixir
@@ -2278,6 +2644,15 @@ Kino.nothing()
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Search-Sequence while searching for number 12: [6, 9, 12]
+Search-Sequence while searching for number 12: [:right, :right, :found]
+Search-Sequence while searching for number 6: [7, 3, 5]
+Search-Sequence while searching for number 6: [:left, :right, :right, :miss]
+```
+
 ```elixir
 [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12]
 |> Anamorphism.ana(
@@ -2312,6 +2687,13 @@ Kino.nothing()
 Kino.nothing()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+Binary-Search for number 12: true
+Binary-Search for number 6: false
+```
+
 Again we can combine anamorphism and cata morphism into hylomorphism.
 
 ```elixir
@@ -2340,6 +2722,13 @@ Again we can combine anamorphism and cata morphism into hylomorphism.
 |> IO.inspect(label: "Binary-Search for number 6", charlists: :as_list)
 
 Kino.nothing()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Binary-Search for number 12: true
+Binary-Search for number 6: false
 ```
 
 first sort a list via merge sort hylomorphism and then search via binary search and for number to output the search sequence.
@@ -2383,4 +2772,15 @@ for needle <- [12, 42] do
 end
 
 Kino.nothing()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Binary-Search for number 12: false
+Binary-Search for number 12: [8, 67, 42, 16]
+Binary-Search for number 12: [:right, :left, :left, :miss]
+Binary-Search for number 42: true
+Binary-Search for number 42: [8, 67, 42]
+Binary-Search for number 42: [:right, :left, :found]
 ```
