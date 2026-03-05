@@ -2,11 +2,13 @@
 
 # Recursion Schemes
 
-This livebook is an introduction to the function programming concept of _recursion schemes_ via Elixir.
+This livebook is an introduction to the function programming concept of [_recursion schemes_](https://github.com/passy/awesome-recursion-schemes) via Elixir.
 
 You might enjoy it if you would like to understand the code snippet below.
 You will learn what are _catamorphisms_, _anamorphisms_ and _hylomorphism_.
 It will let you see the structural connection between fibonacci numbers, faculty, summing integers, merge sort, binary search.
+
+The livebook based on this [javascript based introduction](https://static.laszlokorte.de/recursion-schemes/). Due to pattern matching the Elixir code can be much more concise than the JavaScript code.
 
 ```elixir
 search_tree =
