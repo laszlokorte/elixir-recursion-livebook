@@ -481,7 +481,7 @@ Tree as String: "(([2]:[3]):([5]:([2]:[3])))"
 
 All the implementations above look very similar. All of them check if the current node we are looking at is a `:leaf`. If so, a base case result is returned, either a constant or a some other value based only on the value stored in the `{:leaf, _}` tuple. If on the other hand the current node is an `:inner` node, two recursive function calls are invoked (one for the left and one for the right branch of the tree) and then their result is combined in a suitable way.
 
-This pattern of similarity between these function is what we are after. 
+This pattern of similarity between these function is what we are after.
 Such recognizable commonalities between different recursive algorithms is exactly what is called a recursion scheme.
 
 The specific pattern that we just recognized is one specific recursion scheme. Later we will see that this pattern is already well known and has its own name.
@@ -568,7 +568,7 @@ Have we mastered the recursion scheme? Almost, but we can find **even more patte
 
 ## Other recursive data structures
 
-The `TreeReducer.reduce/3` function does work for our specfic binary tree. 
+The `TreeReducer.reduce/3` function does work for our specfic binary tree.
 But what if we have other recursive data structures to work with?
 
 For example *linked lists*, *trees with more than two branches* or *trees with values stored on the inner nodes* as well?
@@ -681,7 +681,7 @@ Min Value: 4
 defmodule LinkedListMinValue do
   # linked lists can be empty
   # empty lists have no minimum that could be the result
-  # so we might provide a fallback value  
+  # so we might provide a fallback value
   def minValue(list, fallback \\ :infinity)
 
   # if the list is empty just return the fallback value
@@ -849,8 +849,8 @@ Kino.nothing()
 Min Value: 4
 ```
 
-For the `Tree` with maybe `:empty` nodes we had to consider three cases (`:inner`, `:leaf`, and `:empty`). 
-Therefore we will accept three different callback functions to handle them. 
+For the `Tree` with maybe `:empty` nodes we had to consider three cases (`:inner`, `:leaf`, and `:empty`).
+Therefore we will accept three different callback functions to handle them.
 Same as with the `LinkedList` above, we model the fallback value for the empty case as constant-returning-function.
 
 ```elixir
@@ -863,7 +863,7 @@ defmodule SparseTreeReduce do
     handleEmpty.()
   end
 
-  # for leaf nodes pass the single value to the second callback 
+  # for leaf nodes pass the single value to the second callback
   def reduceValue({:leaf, value}, _handleEmpty, handleLeaf, _handleInner) do
     handleLeaf.(value)
   end
@@ -913,7 +913,7 @@ defmodule BinaryTreeReduceUnified do
 
   # if the tree is just a leaf
   # pass the value to the single callback
-  # together with a :leaf to tell the callback 
+  # together with a :leaf to tell the callback
   # that the value is from a leaf
   def reduceValue({:leaf, value}, handleCases) do
     handleCases.({:leaf, value})
@@ -922,7 +922,7 @@ defmodule BinaryTreeReduceUnified do
   # if its an inner node,
   # process the child trees recursively as before
   # but this pass the result to the same one callback
-  # together with an :inner marker to signify the the parameters come from 
+  # together with an :inner marker to signify the the parameters come from
   # an inner node
   def reduceValue({:inner, inner_value, left, right}, handleCases) do
     handleCases.({
@@ -1054,7 +1054,7 @@ Both look like `{:inner, value, left, right} or {:leaf, value}` on the surface b
 In other words the one structure is actually `{:inner, value: Number, left: Tree, right: Tree} | {:leaf, value: number}` and the other is: `{value: Number, left: Number, right: Number} | {value: number}`.
 
 ```elixir
-defmodule Ellipsis do 
+defmodule Ellipsis do
   # Just a helper to allow writing ... in code
   def ..., do: nil
 end
@@ -1070,7 +1070,7 @@ actualInnerTreeNode = {
   5,
   # left child, being itself a tree node recursively
   {...},
-  # right child, being itself a tree node recursively 
+  # right child, being itself a tree node recursively
   {...}
 }
 
@@ -1080,13 +1080,13 @@ recursionResultTreeNode = {
   :inner,
   # copy of the value stored in the original tree node,
   5,
-  # not a recursive child node, 
+  # not a recursive child node,
   23,
-  # but just the result of the recursive function call on the 
+  # but just the result of the recursive function call on the
   # left child of the original tree node
-  # not a recursive child node, but just the result of the 
+  # not a recursive child node, but just the result of the
   42
-  # recursive function call on the right child of the original tree node 
+  # recursive function call on the right child of the original tree node
 }
 
 # an actual node from the recursive tree structure
@@ -1341,8 +1341,8 @@ Lets put everything back together:
 
 ```elixir
 defmodule SparseTreeRecursionMap do
-  # The recursive structure of a Tree is 
-  # defined in terms of a mapping 
+  # The recursive structure of a Tree is
+  # defined in terms of a mapping
   # over the recursive fields
   def mapRecur(tree, fun) do
     case tree do
@@ -1366,7 +1366,7 @@ end
 # The recursive reduction
 defmodule RecursiveReduction do
   # the recursive reduction makes use of the recursive structure to walk the
-  # the tree. But now this reduce function is independent of any structure 
+  # the tree. But now this reduce function is independent of any structure
   # that is specific to list, tree or sparse tree
   def reduce(data, mapRecur, handleCases) do
     data
@@ -1389,7 +1389,7 @@ simpleBinaryTreeWithEmptyNode
   # know how to walk the recursive structure
   &SparseTreeRecursionMap.mapRecur/2,
   fn
-    # the handleCases callback still needs to handle 
+    # the handleCases callback still needs to handle
     # the cases specific the the processed data structure
     :empty -> :infinity
     {:leaf, v} -> v
@@ -1463,7 +1463,7 @@ defmodule TreeRecursionMap do
           :inner,
           inner_value,
           fun.(left),  # <-- fun.() for the recursive fields
-          fun.(right)  # <-- fun.() 
+          fun.(right)  # <-- fun.()
         }
     end
   end
@@ -1521,7 +1521,7 @@ Now we can express a recursive data structure as a combinations of mapping over 
 
 ```elixir
 defmodule SparseTreeStructure do
-  # the structure of a tree with possibly empty nodes 
+  # the structure of a tree with possibly empty nodes
   def recursion(tree, fun) do
     case tree do
       :empty ->  # <- either empty
@@ -1530,12 +1530,12 @@ defmodule SparseTreeStructure do
       {:leaf, value} -> # <- or leaf
         {:leaf, value}
 
-      {:inner, inner_value, left, right} -> # <- or an inner node with 
+      {:inner, inner_value, left, right} -> # <- or an inner node with
         {
           :inner,
           inner_value,
           fun.(left), # <--- fun.() two recursive children
-          fun.(right) # <--- fun.() 
+          fun.(right) # <--- fun.()
         }
     end
   end
@@ -1694,7 +1694,7 @@ Now that we have defined the structure of our `simpleBinaryTreeWithEmptyNode` vi
 # calling `cata` with both the matching `recursion` function and the corresponding algebra:
 simpleBinaryTreeWithEmptyNode # <- data
 |> Catamorphism.cata(
-  &SparseTreeStructure.recursion/2, # <- recursion 
+  &SparseTreeStructure.recursion/2, # <- recursion
   &SparseTreeStructure.Algebras.min/1 # <- algebra
 )
 |> IO.inspect(label: "Min Value")
@@ -2008,7 +2008,7 @@ end
 
 defmodule Hylomorphism do
   # composition of cata and ana:
-  # takes a single seed, turns it into a recursive structure 
+  # takes a single seed, turns it into a recursive structure
   # and then reduce this structure back into a value
   def hylo(seed, mapRecur, coalgebra, algebra) do
     seed
@@ -2154,8 +2154,8 @@ defmodule SparseTreeStructure.CoAlgebras do
     case height do
       0 -> :empty
       1 -> {:leaf, 1}
-      # a tree of height h shall have a left child 
-      # of height h - 1 and a right child of height h - 2 
+      # a tree of height h shall have a left child
+      # of height h - 1 and a right child of height h - 2
       h -> {:inner, h, h - 1, h - 2}
     end
   end
@@ -2245,7 +2245,7 @@ Balanced Search Tree with values from 0 to 16: {:inner, 8,
   {:inner, 14, {:leaf, 13}, {:leaf, 15}}}}
 ```
 
-## Gaußian Sum and Faculty
+## Gaußian Sum and Factorial
 
 Next lets compose some *Anamorphisms* with *Catamorphisms*.
 
@@ -2308,7 +2308,7 @@ Instead of first using ana and then cata, we can combine both calls into hylo.
 100  # <-- seed value
 |> Hylomorphism.hylo(
   &LinkedListStructure.recursion/2, # <-- structure to generate AND reduce (List)
-  # build list of integers from 100 to 1 
+  # build list of integers from 100 to 1
   &LinkedListStructure.CoAlgebras.countdown/1, # <-- generator
   # reduce the list via summation
   &LinkedListStructure.Algebras.sum/1 # <--- reducer
@@ -2488,7 +2488,7 @@ We can use our `LeafTreeStructure` to calculate fibonacci numbers:
 8
 |> Anamorphism.ana(
   # grow barely balanced tree of height 8 with
-  # leafs that each contain a 1 as their value 
+  # leafs that each contain a 1 as their value
   &LeafTreeStructure.recursion/2,
   &LeafTreeStructure.CoAlgebras.grow_barely_balanced/1
 )
@@ -2516,7 +2516,7 @@ Again we can combine ana and cata into hylo and instead of  `LeafTreeStructure` 
   &LeafTreeStructure.recursion/2,
   # generate barely balacned tree of height 8 with leafs all having value 1
   &LeafTreeStructure.CoAlgebras.grow_barely_balanced/1,
-  # sum up all values 
+  # sum up all values
   &LeafTreeStructure.Algebras.sum/1
 )
 |> IO.inspect(label: "Fibonacci of 8")
@@ -2650,7 +2650,7 @@ The structure of a search tree is basically the same as one of our previous tree
 
 ```elixir
 defmodule SearchTreeStructure do
-  # the structure of a binary search tree with possibly empty nodes 
+  # the structure of a binary search tree with possibly empty nodes
   def recursion(tree, fun) do
     case tree do
       :empty ->
@@ -2668,7 +2668,7 @@ defmodule SearchTreeStructure do
           inner_value,
           # fun.() with two recursive children
           fun.(left),
-          # fun.() 
+          # fun.()
           fun.(right)
         }
     end
@@ -2676,7 +2676,7 @@ defmodule SearchTreeStructure do
 
   # coalgebra for gerating a tree from a list of numbers
   defmodule CoAlgebras do
-    # as before we can recursively split a sorted list into two child tree, 
+    # as before we can recursively split a sorted list into two child tree,
     # storing the median as inner value
     def from_list(list) do
       case list do
@@ -2699,14 +2699,14 @@ defmodule SearchTreeStructure do
   defmodule Algebras do
     # capture the needle that we are searching
     def binary_search(needle) do
-      # return the callback function that handles the cases 
+      # return the callback function that handles the cases
       # this function returns true of the value is found and false otherwise
       fn
         # value is not found in empty node
         :empty -> false
         # value is found in leaf node that contains the needle
         {:leaf, ^needle} -> true
-        # value is not found if leaf is reach 
+        # value is not found if leaf is reach
         {:leaf, _v} -> false
         # value is found if inner node contains needle
         {:inner, ^needle, _l, _r} -> true
@@ -2783,10 +2783,10 @@ defmodule BinarySearchSequence.CoAlgebras do
       {:leaf, v} -> [v | :empty]
       # if inner with correct value, collect value and stop
       {:inner, ^needle, _l, _r} -> [needle | :empty]
-      # if inner value greater than needle, 
+      # if inner value greater than needle,
       # collect value and continue with the left sub tree
       {:inner, v, l, _r} when needle < v -> [v | l]
-      # if inner value less than needle, 
+      # if inner value less than needle,
       # collect value and continue with the right sub tree
       {:inner, v, _l, r} when needle > v -> [v | r]
     end
