@@ -10,7 +10,7 @@ Mix.install([
 
 ## Introduction
 
-[**Recursion schemes**](https://github.com/passy/awesome-recursion-schemes) are higher order functions that can be used as building blocks for composing recursive algorithms. Recursion schemes separate the *recursive part* of a recursive algorithm from the *actual calculation* the same way the functions like `Enum.map` separate the the *iteration* logic from the *calculation* that should be done on each element.
+[**Recursion schemes**](https://github.com/passy/awesome-recursion-schemes) are higher order functions that can be used as building blocks for composing recursive algorithms. Recursion schemes separate the *recursive part* of a recursive algorithm from the *actual calculation* the same way that functions like `Enum.map` separate the the *iteration* logic on the container from the *calculation* that is done on each individual element.
 
 This livebook will be guiding you through a thought process to understanding recursion schemes by inventing/discovering them by yourself.
 
