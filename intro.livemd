@@ -3137,3 +3137,129 @@ Kino.nothing()
 Sorted List	: [1, 3, 3, 4, 4, 6, 6, 7, 7, 8, 8, 9, 10, 12, 16, 42, 67, 99, 108]
 Selected	: [1, 3, 3, 4, 4, 6, 6, 7, 7, 8, 8, 9, 10, 12, 16, 42, 67, 99, 108]
 ```
+
+## Paramorphism
+
+```elixir
+defmodule CatamorphismReview do
+  def cata(data, mapRecur, algebra) do
+    data
+    |> mapRecur.(fn
+      child -> cata(child, mapRecur, algebra)
+    end)
+    |> algebra.()
+  end
+end
+
+Kino.nothing()
+```
+
+```elixir
+defmodule Paramorphism do
+  # like cata, but the algebra also receives the original substructure
+  # alongside the recursively computed result
+  # eg turn [1,2,3] into [[1,2,3], [2,3], [3], []]
+  def para(data, mapRecur, algebra) do
+    data
+    |> mapRecur.(fn
+      child -> {child, para(child, mapRecur, algebra)}
+    end)
+    |> algebra.()
+  end
+end
+
+Kino.nothing()
+```
+
+```elixir
+defmodule ParaExample do
+  def tails(list) do
+    list
+    |> Paramorphism.para(
+      &LinkedListStructure.recursion/2,
+      fn
+        [] ->
+          [[]]
+
+        [h | {original, rest}] ->
+          [[h | original] | rest]
+          #        original sublist  +  bereits berechnete tails
+      end
+    )
+  end
+end
+
+Kino.nothing()
+```
+
+```elixir
+["Hello", "my", "name", "is"]
+|> ParaExample.tails()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[["Hello", "my", "name", "is"], ["my", "name", "is"], ["name", "is"], ["is"], []]
+```
+
+```elixir
+defmodule Expression do
+  def recursion(term, fun) do
+    case term do
+      {:number, n} -> {:number, n}
+      {:add, a, b} -> {:add, fun.(a), fun.(b)}
+      {:mul, a, b} -> {:mul, fun.(a), fun.(b)}
+    end
+  end
+
+  defmodule Algebra do
+    def pretty(expr) do
+      case expr do
+        {:number, n} ->
+          Integer.to_string(n)
+
+        {:add, {_a, a_string}, {_b, b_string}} ->
+          "#{a_string} + #{b_string}"
+
+        {:mul, {a, a_string}, {b, b_string}} ->
+          l = if match?({:add, _, _}, a), do: "(#{a_string})", else: a_string
+          r = if match?({:add, _, _}, b), do: "(#{b_string})", else: b_string
+          "#{l} * #{r}"
+      end
+    end
+  end
+end
+
+Kino.nothing()
+```
+
+```elixir
+{:add, {:add, {:number, 4}, {:number, 5}}, {:add, {:number, 3}, {:number, 7}}}
+|> Paramorphism.para(&Expression.recursion/2, &Expression.Algebra.pretty/1)
+|> IO.inspect(label: "Pretty\t", charlists: :as_list)
+
+
+{:mul, {:add, {:number, 4}, {:number, 5}}, {:add, {:number, 3}, {:number, 7}}}
+|> Paramorphism.para(&Expression.recursion/2, &Expression.Algebra.pretty/1)
+|> IO.inspect(label: "Pretty\t", charlists: :as_list)
+
+
+{:mul, {:add, {:number, 4}, {:number, 5}}, {:mul, {:number, 3}, {:number, 7}}}
+|> Paramorphism.para(&Expression.recursion/2, &Expression.Algebra.pretty/1)
+|> IO.inspect(label: "Pretty\t", charlists: :as_list)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Pretty	: "4 + 5 + 3 + 7"
+Pretty	: "(4 + 5) * (3 + 7)"
+Pretty	: "(4 + 5) * 3 * 7"
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"(4 + 5) * 3 * 7"
+```
