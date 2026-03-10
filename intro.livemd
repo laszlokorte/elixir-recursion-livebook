@@ -2695,6 +2695,14 @@ defmodule SearchTreeStructure do
   # The algebra for reducing a tree back into the single number
   # the we are looking for
   defmodule Algebras do
+    def toString(tree) do
+      case tree do     
+        :empty -> "#"
+        {:leaf, val} -> "[#{val}]"
+        {:inner, v, l, r} -> "(#{l} : #{v} : #{r})"
+      end
+    end
+
     # capture the needle that we are searching
     def binary_search(needle) do
       # return the callback function that handles the cases
@@ -3195,12 +3203,21 @@ Kino.nothing()
 ```elixir
 ["Hello", "my", "name", "is"]
 |> ParaExample.tails()
+|> IO.inspect(label: "Tails\t", charlists: :as_list)
+
+Kino.nothing()
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-[["Hello", "my", "name", "is"], ["my", "name", "is"], ["name", "is"], ["is"], []]
+Tails	: [
+  ["Hello", "my", "name", "is"],
+  ["my", "name", "is"],
+  ["name", "is"],
+  ["is"],
+  []
+]
 ```
 
 ```elixir
@@ -3248,6 +3265,9 @@ Kino.nothing()
 {:mul, {:add, {:number, 4}, {:number, 5}}, {:mul, {:number, 3}, {:number, 7}}}
 |> Paramorphism.para(&Expression.recursion/2, &Expression.Algebra.pretty/1)
 |> IO.inspect(label: "Pretty\t", charlists: :as_list)
+
+
+Kino.nothing()
 ```
 
 <!-- livebook:{"output":true} -->
@@ -3258,8 +3278,213 @@ Pretty	: "(4 + 5) * (3 + 7)"
 Pretty	: "(4 + 5) * 3 * 7"
 ```
 
+## Histomorphism
+
+Above we already calculated fibonacci numbers by generating barely-balanced binary trees via Anamorphism and then summing or counting the leafs.
+
+The classic fast way to compute fib(n) is via memoization or via dynamic programming.
+A table is used to store intermediate results and the next result is calculated by reading the two previous results from the table and summing them.
+
+With memoization this result table is computed on demand top down. With dynamic programming the table is built bottom-up, starting with the two base cases fib(0) = 0, fib(1) = 1.
+
+A recursive algorithm that has access to results from more then one step down the recursion are called Histomorphisms.
+
+For Fibonacci we need not only the direct recursive result but also the next one. With an Histomorphism the list of result values is carried through the recursion stack explicitly.
+
+```elixir
+defmodule Histomorphism do
+  def histo(structure, map_recur, algebra) do
+    structure
+    |> map_recur.(&histo(&1, map_recur, algebra))
+    # package the result of algebra and the original parameter into a tuple
+    |> then(&{algebra.(&1), &1})
+  end
+end
+
+Kino.nothing()
+```
+
+```elixir
+defmodule Naturals do
+  # Natural numbers can be encoded like linked lists without element
+  def recursion(term, fun) do
+    case term do
+      # :zero is like nil in linked lists
+      :zero -> :zero
+      # :successor is like cons [head | tail] in linked lists but without the head 
+      {:successor, nat} -> {:successor, fun.(nat)}
+    end
+  end
+
+  defmodule Coalgebra do
+    def from_int(i) do
+      # elixir integers can be converted to the natural number list
+      # encoding via Anamorphism
+      case i do
+        # 0 becomes :zero
+        0 -> :zero
+        # all other numbers n become the :successor of (n-1)
+        n -> {:successor, n - 1}
+      end
+    end
+  end
+
+  defmodule Algebra do
+    def fibonacci(nat) do
+      case nat do
+        # fib(:zero) is 0
+        :zero ->
+          0
+
+        # fib(:sucessor of 0) is 1
+        {:successor, {prev, :zero}} ->
+          prev + 1
+
+        # fib(:sucessor of any other successor) is the sum of two previous recursion results
+        {:successor, {prev, {:successor, {prevPrev, _}}}} ->
+          prev + prevPrev
+      end
+    end
+  end
+end
+
+Kino.nothing()
+```
+
+Now we can calculate fib(10)
+
+```elixir
+10
+# convert int into natural
+|> Anamorphism.ana(&Naturals.recursion/2, &Naturals.Coalgebra.from_int/1)
+# calculate fib via histomorphism
+|> Histomorphism.histo(&Naturals.recursion/2, &Naturals.Algebra.fibonacci/1)
+# discard result table, only keep the final result
+|> elem(0)
+|> IO.inspect(label: "Fib(10)\t", charlists: :as_list)
+
+Kino.nothing()
+```
+
 <!-- livebook:{"output":true} -->
 
 ```
-"(4 + 5) * 3 * 7"
+Fib(10)	: 55
+```
+
+## Apomorphism
+
+With our search tree example before we had already seend that we need to be careful to not visit all nodes of the tree when our goal is to do a binary search in O(log(n)) time.
+
+When inserting a new node into an existing tree we also want to to it in O(log(n)) steps. Starting at the root, walking do to an empty leaf and inserting a new node there. When doing it correctly we only need to update/replace the nodes on our path.
+
+When approaching it via Catamorphism, *every* node in the tree is visited. We can try to combine some Anamorphism with a Catamorphism, for first constructing the correct path and then collapsing it into an updated tree.
+
+Or we could use a new recursion scheme: Apomorphism.
+
+Apomorphism works like Anamorphism (the old tree is our seed and the updated tree is the generated structure) but it gives us two new markers: :cont and :stop that can be returned from the CoAlgebra to short circuit the generation, skipping the recursive unfolfing for parts of the structure.
+
+```elixir
+defmodule AnamorphismReview do
+  def ana(seed, mapRecur, coalgebra) do
+    seed
+    |> coalgebra.()
+    |> mapRecur.(fn child -> ana(child, mapRecur, coalgebra) end)
+  end
+end
+
+defmodule Apomorphism do
+  # like ana, but the coalgebra can return either:
+  # {:cont, seed}  -> continue unfolding
+  # {:stop, structure} -> embed this structure directly, no further unfolding
+  def apo(seed, mapRecur, coalgebra) do
+    seed
+    |> coalgebra.()
+    |> unwrap(mapRecur, coalgebra)
+  end
+
+  defp unwrap({:cont, child}, mapRecur, coalgebra), do: apo(child, mapRecur, coalgebra)
+  defp unwrap({:stop, subtree}, _mapRecur, _coalgebra), do: subtree
+
+  defp unwrap(tree, mapRecur, coalgebra),
+    do: mapRecur.(tree, fn x -> unwrap(x, mapRecur, coalgebra) end)
+end
+
+Kino.nothing()
+```
+
+```elixir
+defmodule SearchTreeStructure.CoAlgebrasApo do
+  def insert(x) do
+    fn
+      {:inner, v, l, r} when x < v ->
+        {:inner, v, {:cont, l}, {:stop, r}}
+
+      {:inner, v, l, r} when x > v ->
+        {:inner, v, {:stop, l}, {:cont, r}}
+
+      :empty ->
+        {:leaf, x}
+
+      {:leaf, v} when x <= v ->
+        {:inner, v, {:stop, {:leaf, x}}, {:stop, :empty}}
+
+      {:leaf, v} when x > v ->
+        {:inner, v, {:stop, :empty}, {:stop, {:leaf, x}}}
+    end
+  end
+end
+
+Kino.nothing()
+```
+
+```elixir
+[1, 2, 4, 5, 7, 8, 9, 10, 12]
+# turn into tree 
+|> Anamorphism.ana(&SearchTreeStructure.recursion/2, &SearchTreeStructure.CoAlgebras.from_list/1)
+|> Apomorphism.apo(&SearchTreeStructure.recursion/2, SearchTreeStructure.CoAlgebrasApo.insert(11))
+|> Apomorphism.apo(&SearchTreeStructure.recursion/2, SearchTreeStructure.CoAlgebrasApo.insert(3))
+|> Apomorphism.apo(&SearchTreeStructure.recursion/2, SearchTreeStructure.CoAlgebrasApo.insert(6))
+|> Apomorphism.apo(&SearchTreeStructure.recursion/2, SearchTreeStructure.CoAlgebrasApo.insert(13))
+|> Catamorphism.cata(&SearchTreeStructure.recursion/2, &SearchTreeStructure.Algebras.toString/1)
+|> IO.inspect(label: "Updated Tree", charlists: :as_list)
+
+Kino.nothing()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Updated Tree: "((([1] : 2 : [3]) : 4 : (# : 5 : [6])) : 7 : (([8] : 9 : #) : 10 : ([11] : 12 : [13])))"
+```
+
+```elixir
+defmodule LinkedListStructure.CoAlgebrasApo do
+  def dropUntil(el) do
+    fn 
+      [] -> {:stop, []}
+      [^el | _] = l -> {:stop, l}
+      [_ | tail] -> {:cont, tail}
+    end
+  end
+end
+
+Kino.nothing()
+```
+
+```elixir
+[1, 2, 3, 4, 5, 6, 5, 4, 3, 7, 8, 9, 10, 11, 12, 13]
+|> Apomorphism.apo(
+  &LinkedListStructure.recursion/2,
+  LinkedListStructure.CoAlgebrasApo.dropUntil(5)
+)
+|> IO.inspect(label: "Sliced List", charlists: :as_list)
+
+Kino.nothing()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Sliced List: [5, 6, 5, 4, 3, 7, 8, 9, 10, 11, 12, 13]
 ```
