@@ -12,7 +12,9 @@ Mix.install([
 
 [**Recursion schemes**](https://github.com/passy/awesome-recursion-schemes) are higher order functions that can be used as building blocks for composing recursive algorithms. Recursion schemes separate the *recursive part* of a recursive algorithm from the *actual calculation* the same way that functions like `Enum.map` separate the the *iteration* logic on the container from the *calculation* that is done on each individual element.
 
-This livebook will be guiding you through a thought process to understanding recursion schemes by inventing/discovering them by yourself.
+The original paper discussing and naming *recursion schemes* is [Meijer, E., Fokkinga, M., Paterson, R. (1991). Functional programming with bananas, lenses, envelopes and barbed wire](https://ris.utwente.nl/ws/portalfiles/portal/6142047/db-utwente-40501F46.pdf)
+
+This livebook will be guiding you through an hands on thought process to the understanding of *recursion schemes* by inventing/discovering them by yourself.
 
 ## Recap: Higher Order Functions — recursion vs map
 
@@ -3148,6 +3150,10 @@ Selected	: [1, 3, 3, 4, 4, 6, 6, 7, 7, 8, 8, 9, 10, 12, 16, 42, 67, 99, 108]
 
 ## Paramorphism
 
+Lets look at some more recursion schemes that have already been discovered and named. The first one we will look at is Paramorphism.
+
+It works similiar to Catmorphism, reducing a structure into a value. But at each step we do not only have access to the recursive result but also to the the full structure that the recursive result was calculated from. As in hand written recursion we have access to the parameter that we pass to the recursive function call.
+
 ```elixir
 defmodule CatamorphismReview do
   def cata(data, mapRecur, algebra) do
@@ -3170,6 +3176,9 @@ defmodule Paramorphism do
   def para(data, mapRecur, algebra) do
     data
     |> mapRecur.(fn
+      # child -> cata(child, mapRecur, algebra)
+      # note the difference: the `child` value is not only passed to para()
+      # but also captured in a tuple together with the result of para()
       child -> {child, para(child, mapRecur, algebra)}
     end)
     |> algebra.()
@@ -3179,6 +3188,8 @@ end
 Kino.nothing()
 ```
 
+A classical use-case for Paramorphism is to calculate all suffixes of a list:
+
 ```elixir
 defmodule ParaExample do
   def tails(list) do
@@ -3186,12 +3197,17 @@ defmodule ParaExample do
     |> Paramorphism.para(
       &LinkedListStructure.recursion/2,
       fn
+        # the empty list has only a single suffix
         [] ->
           [[]]
 
-        [h | {original, rest}] ->
-          [[h | original] | rest]
-          #        original sublist  +  bereits berechnete tails
+        # here we have access to both the head and the original tail
+        # that was used as argument for the recursive call
+        [head | {original_tail, tail_result}] ->
+          # we prepend our current head back to the original tail
+          # to build our suffix and concat this suffix to the list of all
+          # other already calculated suffixes
+          [[head | original_tail] | tail_result]
       end
     )
   end
@@ -3203,7 +3219,7 @@ Kino.nothing()
 ```elixir
 ["Hello", "my", "name", "is"]
 |> ParaExample.tails()
-|> IO.inspect(label: "Tails\t", charlists: :as_list)
+|> IO.inspect(label: "Tails", charlists: :as_list)
 
 Kino.nothing()
 ```
@@ -3211,7 +3227,7 @@ Kino.nothing()
 <!-- livebook:{"output":true} -->
 
 ```
-Tails	: [
+Tails: [
   ["Hello", "my", "name", "is"],
   ["my", "name", "is"],
   ["name", "is"],
@@ -3220,12 +3236,23 @@ Tails	: [
 ]
 ```
 
+A more practical example is the serialization of an expression tree into a string.
+For prettifying the result we do not want to include unnecessary parenthesis. For example `3 + (4 * 5)` shall be printed as `3 + 4 * 5` instead.
+
+To achieve this we need to check at each recursion level if our current operator has higher or lower precedence than the operators *printed by the next level down*. To decide if our operands need to be wrapped in parenthsis we need to compare our operator to operators from another recursion level.
+
+In a typical *Catamorphism* we only get access to the already stringified results from the levels below. With a *Paramorphism* we have access to both the stringified results as well as the original expression structure from the level below.
+
 ```elixir
 defmodule Expression do
   def recursion(term, fun) do
+    # our expresion tree consists of only numbers, additions and multiplications
     case term do
+      # numbers are the terminals
       {:number, n} -> {:number, n}
+      # only addition ...
       {:add, a, b} -> {:add, fun.(a), fun.(b)}
+      # ...and multiplication contain recursive structure
       {:mul, a, b} -> {:mul, fun.(a), fun.(b)}
     end
   end
@@ -3237,9 +3264,12 @@ defmodule Expression do
           Integer.to_string(n)
 
         {:add, {_a, a_string}, {_b, b_string}} ->
+          # addidion has lowest precence and operands can just be concatenated
           "#{a_string} + #{b_string}"
 
         {:mul, {a, a_string}, {b, b_string}} ->
+          # multiplication has higher precedence
+          # operand is an addition it needs to be wrapped in (parentheses)
           l = if match?({:add, _, _}, a), do: "(#{a_string})", else: a_string
           r = if match?({:add, _, _}, b), do: "(#{b_string})", else: b_string
           "#{l} * #{r}"
@@ -3256,16 +3286,13 @@ Kino.nothing()
 |> Paramorphism.para(&Expression.recursion/2, &Expression.Algebra.pretty/1)
 |> IO.inspect(label: "Pretty\t", charlists: :as_list)
 
-
 {:mul, {:add, {:number, 4}, {:number, 5}}, {:add, {:number, 3}, {:number, 7}}}
 |> Paramorphism.para(&Expression.recursion/2, &Expression.Algebra.pretty/1)
 |> IO.inspect(label: "Pretty\t", charlists: :as_list)
 
-
 {:mul, {:add, {:number, 4}, {:number, 5}}, {:mul, {:number, 3}, {:number, 7}}}
 |> Paramorphism.para(&Expression.recursion/2, &Expression.Algebra.pretty/1)
 |> IO.inspect(label: "Pretty\t", charlists: :as_list)
-
 
 Kino.nothing()
 ```
@@ -3280,7 +3307,7 @@ Pretty	: "(4 + 5) * 3 * 7"
 
 ## Histomorphism
 
-Above we already calculated fibonacci numbers by generating barely-balanced binary trees via Anamorphism and then summing or counting the leafs.
+We had already calculated fibonacci numbers by generating barely-balanced binary trees via Anamorphism and then summing or counting the leafs.
 
 The classic fast way to compute fib(n) is via memoization or via dynamic programming.
 A table is used to store intermediate results and the next result is calculated by reading the two previous results from the table and summing them.
@@ -3487,4 +3514,149 @@ Kino.nothing()
 
 ```
 Sliced List: [5, 6, 5, 4, 3, 7, 8, 9, 10, 11, 12, 13]
+```
+
+## Futumorphism
+
+Futumorphism is similar to Anamorphism in that it generates a structure from a seed value. But instead of producing one node of the structure at a time it can generate larger parts at once.
+
+In that way its the dual of the Histomorphism. The Histomorphism keeps track of not only the next recursion result but instead of all already calculated results.
+The Futumorphism does not emit a single node but as many nodes as needed.
+
+```elixir
+defmodule Futumorphism do
+  # We need two special markers for the co-algebra to tell 
+  # if the returned value is seed for the next generation or
+  # if the returned value is a large structure itself.
+  
+  #   {:pure, seed}       → continue unfolding from seed
+  #   {:free, f_node}     → embed this already-built functor node directly
+
+  def futu(seed, mapRecur, coalgebra) do
+    seed
+    |> coalgebra.()
+    |> mapRecur.(&unfold_free(&1, mapRecur, coalgebra))
+  end
+
+
+  # if the emitted value is marked as :pure,
+  # we just pass the seed to the next recursion call
+  defp unfold_free({:pure, seed}, mapRecur, coalgebra) do
+    futu(seed, mapRecur, coalgebra)          # keep unfolding normally
+  end
+
+  # if the emitted value is marked as :free
+  # we just return the value but deep-unwrap inside to.
+  # We search for a :pure marker somewhere inside to continue
+  # the recursion at.
+  defp unfold_free({:free, f_node}, mapRecur, coalgebra) do
+    f_node
+    |> mapRecur.(fn free_val -> unfold_free(free_val, mapRecur, coalgebra) end)
+  end
+end
+
+Kino.nothing()
+```
+
+We can use the Futumorphism do build a *run length decoder*. It takes a list of `{:symbol, count}` pairs an produces a list of each `:symbol` repeatet `count` times.
+
+```elixir
+[a: 7, b: 11, c: 13]
+|> Futumorphism.futu(&LinkedListStructure.recursion/2, fn
+  [] ->
+    []
+
+  [{val, _count = 1} | rest] ->
+    [val | {:pure, rest}]
+
+  [{val, _count = n} | rest] ->
+    [val | {:pure, [{val, n - 1} | rest]}]
+    end)
+|> IO.inspect(label: "Decoded List", charlists: :as_list)
+
+Kino.nothing()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Decoded List: [:a, :a, :a, :a, :a, :a, :a, :b, :b, :b, :b, :b, :b, :b, :b, :b, :b, :b, :c, :c,
+ :c, :c, :c, :c, :c, :c, :c, :c, :c, :c, :c]
+```
+
+If a run-length encoded list can be decoded via Futumorphism, what recursion scheme could we use to *encode* the list in the first place?
+
+This is a classic case for a Catamorphism to reduce the list structure into a single value.
+
+We can package up the algebra and coalgebra into a `RunLengthCodec` module:
+
+```elixir
+defmodule RunLengthCodec do
+  # the algebra compresses a list into tuple pairs
+  def algebra(seq) do
+    case seq do
+      [] ->
+        []
+
+      # same item as already encoded before, discard previous and increase count
+      [item, {item, count} | rest_encoded] ->
+        [{item, count + 1} | rest_encoded]
+
+      # not the same item as before, add new entry
+      [item | rest_encoded] ->
+        [{item, 1} | rest_encoded]
+    end
+  end
+
+  # the coalgebra expands a run-length encoded list into the full list
+  def coalgebra(seq) do
+    case seq do
+      [] ->
+        []
+
+      # item count is only 1
+      [{val, 1} | rest_encoded] ->
+        [val | {:pure, rest_encoded}]
+
+      # item count is greater than one
+      [{val, n} | rest_encoded] when n > 1 ->
+        [val | {:pure, [{val, n - 1} | rest_encoded]}]
+    end
+  end
+
+  defmodule API do
+    def encode(list) do
+      list
+      |> Catamorphism.cata(
+        &LinkedListStructure.recursion/2,
+        &RunLengthCodec.algebra/1
+      )
+    end
+
+    def decode(list) do
+      list
+      |> Futumorphism.futu(
+        &LinkedListStructure.recursion/2,
+        &RunLengthCodec.coalgebra/1
+      )
+    end
+  end
+end
+
+Kino.nothing()
+```
+
+And then compose them do compress and decompress a list.
+
+```elixir
+[:a, :a, :a, :a, :b, :b, :b, :c, :c]
+|> RunLengthCodec.API.encode()
+|> RunLengthCodec.API.decode()
+|> dbg()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[:a, :a, :a, :a, :b, :b, :b, :c, :c]
 ```
