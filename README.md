@@ -2,6 +2,8 @@
 
 # Introduction Recursion Schemes
 
+[![Run in Livebook](https://livebook.dev/badge/v1/blue.svg)](https://livebook.dev/run?url=https%3A%2F%2Fgithub.com%2Flaszlokorte%2Felixir-recursion-livebook%2Fblob%2Fmain%2Fintro.livemd)
+
 [This Livebook](./intro.livemd) is an introduction to the concept of [_recursion schemes_](https://github.com/passy/awesome-recursion-schemes) in functional programming via Elixir.
 
 You might enjoy it if you would like to understand the code snippet below.
